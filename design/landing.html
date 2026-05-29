@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Tshepo — prove your finances without revealing them</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500&display=swap" rel="stylesheet" />
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          charcoal: '#1A1A1A', surface: '#2B2B2B', brand: '#00A9E0', brandhover: '#0089B8',
+          success: '#1D9E75', warn: '#BA7517', page: '#F7F7F6', line: '#ECECEA', muted: '#6B6B6B',
+        },
+        fontFamily: { sans: ['"Plus Jakarta Sans"', 'ui-sans-serif', 'system-ui', 'sans-serif'] },
+        boxShadow: {
+          soft: '0 1px 3px rgba(0,0,0,0.06)', softer: '0 1px 2px rgba(0,0,0,0.04)',
+          lift: '0 8px 28px rgba(0,0,0,0.08)', card: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.03)',
+        },
+      },
+    },
+  };
+</script>
+<style>
+  html, body { font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif; }
+  html { scroll-behavior: smooth; }
+  body { background: #F7F7F6; color: #1A1A1A; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+  * { font-weight: 400; }
+  .fw-500, .font-medium { font-weight: 500 !important; }
+  ::selection { background: rgba(0,169,224,0.18); }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: #d9d9d6; border-radius: 999px; border: 3px solid #F7F7F6; }
+  ::-webkit-scrollbar-thumb:hover { background: #c6c6c2; }
+  .guilloche {
+    background-image:
+      radial-gradient(circle at 18% 30%, rgba(0,169,224,0.06), transparent 38%),
+      radial-gradient(circle at 88% 14%, rgba(0,169,224,0.05), transparent 30%);
+  }
+  .hero-wash {
+    background:
+      radial-gradient(1100px 480px at 78% -8%, rgba(0,169,224,0.10), transparent 60%),
+      radial-gradient(700px 380px at 8% 8%, rgba(0,169,224,0.05), transparent 55%);
+  }
+  .grid-dots {
+    background-image: radial-gradient(rgba(0,0,0,0.045) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+  .reveal { transform: translateY(16px); transition: transform .6s cubic-bezier(.22,.61,.36,1); }
+  .reveal.in { transform: none; }
+  .float-card { animation: floaty 7s ease-in-out infinite; }
+  @keyframes floaty { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-9px); } }
+  .masked-text { filter: blur(5px); user-select: none; }
+  .marquee { animation: scrollx 26s linear infinite; }
+  @keyframes scrollx { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" src="tshepo-icons.jsx"></script>
+<script type="text/babel" src="tshepo-ui.jsx"></script>
+<script type="text/babel" src="tshepo-data.jsx"></script>
+<script type="text/babel" src="tshepo-cards.jsx"></script>
+<script type="text/babel" src="tshepo-page.jsx"></script>
+</body>
+</html>

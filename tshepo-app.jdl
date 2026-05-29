@@ -1,0 +1,48 @@
+/*
+ * tshepo-app.jdl — Phase 0: application scaffold only (no entities).
+ *
+ * Run:  jhipster jdl tshepo-app.jdl
+ *
+ * Stack pins:
+ *   JHipster 9.0.0 · Spring Boot 4.0.2 · Java 21
+ *   React 19 · Node 22+ · Maven · JWT · PostgreSQL (prod) / H2 (dev)
+ */
+
+application {
+  config {
+    baseName             tshepoVault
+    packageName          app.tshepo
+    applicationType      monolith
+    authenticationType   jwt
+
+    /* Client — npm is the only package manager in JHipster 9 */
+    clientFramework      react
+
+    /* Build */
+    buildTool            maven
+
+    /* Database */
+    databaseType         sql
+    devDatabaseType      h2Disk
+    prodDatabaseType     postgresql
+
+    /* Cache */
+    cacheProvider        ehcache
+    enableHibernateCache true
+
+    /* No extra infra — omitting messageBroker/websocket/searchEngine
+       leaves them at their off defaults in JHipster 9 */
+    serviceDiscoveryType no
+
+    /* i18n — English only, sentence-case enforced in design */
+    enableTranslation    false
+    nativeLanguage       en
+    languages            [en]
+
+    /* Server */
+    serverPort           8080
+
+    /* Testing — Cypress for E2E */
+    testFrameworks       [cypress]
+  }
+}

@@ -1,0 +1,806 @@
+openapi: 3.1.0
+
+info:
+  title: Tshepo — Proof-of-Funds Credential API
+  version: 0.1.0
+  description: |
+    Tshepo issues selectively-disclosable SD-JWT Verifiable Credentials attesting
+    financial facts computed from a holder's Investec account.  Raw transactions are
+    **never persisted** — only boolean claim results are stored.
+
+    ## Two actor surfaces
+    | Surface | Auth | Base path |
+    |---------|------|-----------|
+    | Holder app | JWT (Bearer) | `/api` |
+    | Verifier (public) | API key (`X-API-Key`) or none | `/api/verify`, `/v1/verify` |
+
+    ## Issuer identity
+    The issuer is identified as a `did:web` DID.  The DID document and JWKS are
+    served at the well-known endpoints below and must be resolvable over HTTPS in
+    production.
+
+  contact:
+    name: Tshepo Engineering
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:8080
+    description: Local development (H2 / fixture Investec data)
+  - url: https://api.tshepo.app
+    description: Production
+
+# ─────────────────────────────────────────────
+# Security schemes
+# ─────────────────────────────────────────────
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JHipster-issued JWT returned by `/api/authenticate`.
+    apiKeyHeader:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: Metered API key for high-volume verifier integrations.
+
+  # ─────────────────────────────────────────────
+  # Shared schemas
+  # ─────────────────────────────────────────────
+  schemas:
+
+    # ── Bank connection ──────────────────────────
+    BankConnectRequest:
+      type: object
+      required: [authorizationCode, redirectUri]
+      properties:
+        authorizationCode:
+          type: string
+          description: OAuth 2.0 authorization code returned by Investec's auth server.
+        redirectUri:
+          type: string
+          format: uri
+          description: Must match the redirect URI registered with Investec.
+
+    BankStatusResponse:
+      type: object
+      properties:
+        connected:
+          type: boolean
+        connectedAt:
+          type: string
+          format: date-time
+          nullable: true
+        maskedAccount:
+          type: string
+          example: "•••• 4821"
+          nullable: true
+        status:
+          type: string
+          enum: [CONNECTED, DISCONNECTED, ERROR]
+
+    # ── Claim types ──────────────────────────────
+    ClaimType:
+      type: string
+      enum: [INFLOW, BALANCE, TENURE, SALARY_CONTINUITY, NO_OVERDRAFT]
+
+    ClaimThreshold:
+      type: object
+      required: [type, operator, threshold]
+      properties:
+        type:
+          $ref: '#/components/schemas/ClaimType'
+        operator:
+          type: string
+          enum: [GTE, LTE, EQ]
+          description: "GTE = ≥, LTE = ≤, EQ = ="
+        threshold:
+          type: number
+          description: Numeric threshold value (Rands for monetary claims, months for tenure).
+        currency:
+          type: string
+          default: ZAR
+        periodMonths:
+          type: integer
+          description: Look-back window in months (defaults to 6).
+          default: 6
+
+    ComputedClaim:
+      type: object
+      properties:
+        type:
+          $ref: '#/components/schemas/ClaimType'
+        operator:
+          type: string
+        threshold:
+          type: number
+        currency:
+          type: string
+        met:
+          type: boolean
+          description: Whether the holder currently satisfies this threshold.
+        basis:
+          type: string
+          description: Human-readable source description shown to holder only (never in credential).
+          example: "Last 6 months"
+
+    # ── Credential ───────────────────────────────
+    CredentialIssueRequest:
+      type: object
+      required: [title, claims]
+      properties:
+        title:
+          type: string
+          maxLength: 120
+          example: "Proof of income — rental application"
+        purpose:
+          type: string
+          maxLength: 200
+          example: "For a residential lease"
+        claims:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/ClaimThreshold'
+        validityDays:
+          type: integer
+          minimum: 1
+          maximum: 730
+          default: 180
+          description: Credential validity period in days from issuance.
+
+    CredentialResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        holderLogin:
+          type: string
+        title:
+          type: string
+        purpose:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [ACTIVE, REVOKED, EXPIRED]
+        issuedAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+        issuerDid:
+          type: string
+          example: "did:web:tshepo.app"
+        vcRef:
+          type: string
+          description: URN reference for the credential.
+          example: "urn:vc:tshepo:8f3a-1d92"
+        claims:
+          type: array
+          items:
+            $ref: '#/components/schemas/ComputedClaim'
+          description: Claim results shown to holder; never included in presentations.
+        claimCount:
+          type: integer
+
+    CredentialListResponse:
+      type: object
+      properties:
+        credentials:
+          type: array
+          items:
+            $ref: '#/components/schemas/CredentialResponse'
+        total:
+          type: integer
+
+    # ── Presentation ─────────────────────────────
+    PresentRequest:
+      type: object
+      required: [disclosedClaimTypes]
+      properties:
+        disclosedClaimTypes:
+          type: array
+          minItems: 1
+          description: Claim types the holder chooses to reveal.
+          items:
+            $ref: '#/components/schemas/ClaimType'
+
+    PresentationResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          description: Compact SD-JWT presentation token.
+          example: "tshpo_pres_8f3a91c4d2e07b65..."
+        qrDataUrl:
+          type: string
+          description: Data URL of a QR code encoding the token (PNG, base64).
+          nullable: true
+        disclosedClaimTypes:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClaimType'
+        expiresAt:
+          type: string
+          format: date-time
+        credentialId:
+          type: string
+          format: uuid
+
+    # ── Verification ─────────────────────────────
+    VerifyRequest:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+          description: SD-JWT presentation token from the holder.
+
+    VerifyResponse:
+      type: object
+      properties:
+        valid:
+          type: boolean
+        issuerDid:
+          type: string
+          nullable: true
+          example: "did:web:tshepo.app"
+        holderDid:
+          type: string
+          nullable: true
+          description: Holder's pseudonymous DID — not their name or account.
+        disclosedClaims:
+          type: array
+          nullable: true
+          description: Only present when valid = true.
+          items:
+            $ref: '#/components/schemas/DisclosedClaim'
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+        error:
+          type: string
+          nullable: true
+          description: Machine-readable error code when valid = false.
+          enum: [MALFORMED, EXPIRED, REVOKED, UNTRUSTED_ISSUER, SIGNATURE_INVALID]
+
+    DisclosedClaim:
+      type: object
+      properties:
+        type:
+          $ref: '#/components/schemas/ClaimType'
+        operator:
+          type: string
+        threshold:
+          type: number
+        currency:
+          type: string
+        met:
+          type: boolean
+
+    # ── Verifier API key ─────────────────────────
+    VerifierApiKeyResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        label:
+          type: string
+        active:
+          type: boolean
+        callCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+
+    # ── DID document ─────────────────────────────
+    DidDocument:
+      type: object
+      description: W3C DID document for did:web resolution.
+      properties:
+        "@context":
+          type: array
+          items:
+            type: string
+        id:
+          type: string
+          example: "did:web:tshepo.app"
+        verificationMethod:
+          type: array
+          items:
+            type: object
+        assertionMethod:
+          type: array
+          items:
+            type: string
+
+    JwksResponse:
+      type: object
+      description: JSON Web Key Set used to verify SD-JWT signatures.
+      properties:
+        keys:
+          type: array
+          items:
+            type: object
+
+    # ── Errors ───────────────────────────────────
+    ProblemDetail:
+      type: object
+      description: RFC 9457 problem detail.
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+          format: uri
+
+# ─────────────────────────────────────────────
+# Paths
+# ─────────────────────────────────────────────
+paths:
+
+  # ── Well-known / issuer identity ────────────
+
+  /.well-known/did.json:
+    get:
+      tags: [Issuer identity]
+      summary: DID document for did:web resolution
+      description: |
+        Returns the issuer's W3C DID document.  Resolving `did:web:tshepo.app`
+        fetches this endpoint.  Must be publicly reachable over HTTPS.
+      operationId: getDidDocument
+      responses:
+        "200":
+          description: DID document
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DidDocument'
+
+  /.well-known/jwks.json:
+    get:
+      tags: [Issuer identity]
+      summary: JSON Web Key Set
+      description: |
+        Public keys used to verify SD-JWT credential signatures.
+        Verifiers fetch this to validate the issuer's cryptographic assertions.
+      operationId: getJwks
+      responses:
+        "200":
+          description: JWKS
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JwksResponse'
+
+  # ── Bank connection (holder, JWT-secured) ───
+
+  /api/bank/connect:
+    post:
+      tags: [Bank connection]
+      summary: Connect an Investec account
+      description: |
+        Exchanges the Investec OAuth2 authorization code for an access token,
+        pulls account metadata, pre-computes all supported claims in memory,
+        then discards the raw transaction data.  Only a `BankConnection` metadata
+        record (no transactions) is persisted.
+      operationId: connectBank
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BankConnectRequest'
+      responses:
+        "200":
+          description: Bank connected and claims pre-computed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BankStatusResponse'
+        "400":
+          description: Invalid authorization code or redirect URI
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        "401":
+          description: Missing or invalid JWT
+        "502":
+          description: Investec API unreachable or returned an error
+
+  /api/bank/status:
+    get:
+      tags: [Bank connection]
+      summary: Get current bank connection status
+      operationId: getBankStatus
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Current connection status for the authenticated holder
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BankStatusResponse'
+        "401":
+          description: Missing or invalid JWT
+
+  /api/bank/claims:
+    get:
+      tags: [Bank connection]
+      summary: List available claims with met/not-met status
+      description: |
+        Returns all supported claim thresholds with a computed `met` boolean for
+        the current holder.  The raw evidence string (`basis`) is included here
+        for holder display only — it never enters a credential or presentation.
+      operationId: getAvailableClaims
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Available claims
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  claims:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ComputedClaim'
+        "401":
+          description: Missing or invalid JWT
+        "409":
+          description: No bank account connected yet
+
+  # ── Credential issuance (holder, JWT-secured) ─
+
+  /api/credentials:
+    get:
+      tags: [Credentials]
+      summary: List holder's credentials
+      operationId: listCredentials
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [ACTIVE, REVOKED, EXPIRED]
+          description: Filter by status.
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Paginated credential list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CredentialListResponse'
+        "401":
+          description: Missing or invalid JWT
+
+  /api/credentials/issue:
+    post:
+      tags: [Credentials]
+      summary: Issue a new SD-JWT VC
+      description: |
+        Computes the requested claim predicates in memory from the connected bank
+        account, builds an SD-JWT VC (each claim independently disclosable), signs
+        it with the issuer key, and persists a `Credential` + `IssuedClaim` records.
+        Raw transaction data is discarded immediately after predicate evaluation.
+      operationId: issueCredential
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CredentialIssueRequest'
+      responses:
+        "201":
+          description: Credential issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CredentialResponse'
+        "400":
+          description: Invalid request or claim threshold not met
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        "401":
+          description: Missing or invalid JWT
+        "409":
+          description: No bank account connected
+
+  /api/credentials/{id}:
+    get:
+      tags: [Credentials]
+      summary: Get a single credential
+      operationId: getCredential
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Credential detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CredentialResponse'
+        "401":
+          description: Missing or invalid JWT
+        "404":
+          description: Credential not found or not owned by caller
+
+  /api/credentials/{id}/revoke:
+    post:
+      tags: [Credentials]
+      summary: Revoke a credential
+      operationId: revokeCredential
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Credential revoked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CredentialResponse'
+        "401":
+          description: Missing or invalid JWT
+        "404":
+          description: Credential not found
+        "409":
+          description: Credential is already revoked or expired
+
+  /api/credentials/{id}/present:
+    post:
+      tags: [Credentials]
+      summary: Generate a selective-disclosure presentation
+      description: |
+        Builds a presentation containing only the caller-specified claims.
+        Claims not included are cryptographically hidden — a verifier cannot
+        determine they exist.  A `VerificationEvent` audit record is created
+        with `apiKeyId = null` (holder-initiated presentation).
+      operationId: presentCredential
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PresentRequest'
+      responses:
+        "200":
+          description: Presentation token + QR
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PresentationResponse'
+        "400":
+          description: Requested claim types not present in this credential
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        "401":
+          description: Missing or invalid JWT
+        "404":
+          description: Credential not found
+        "410":
+          description: Credential is revoked or expired
+
+  # ── Verification (public) ────────────────────
+
+  /api/verify:
+    post:
+      tags: [Verification]
+      summary: Verify a presentation (public, browser-friendly)
+      description: |
+        Validates the SD-JWT presentation: signature, issuer trust (did:web/JWKS),
+        and expiry.  Returns only the claims the holder chose to disclose.
+        No holder account or raw data is accessed.
+
+        This endpoint is **rate-limited** per IP.  For high-volume integrations
+        use `/v1/verify` with an API key.
+
+        A `VerificationEvent` audit record is created regardless of verdict.
+      operationId: verifyPresentation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyRequest'
+      responses:
+        "200":
+          description: Verification result (check `valid` field)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerifyResponse'
+        "400":
+          description: Malformed request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        "429":
+          description: Rate limit exceeded — use the API-key endpoint
+
+  /v1/verify:
+    post:
+      tags: [Verification]
+      summary: Verify a presentation (metered, API-key authenticated)
+      description: |
+        Production verification endpoint for verifier integrations.
+        Requires a valid `X-API-Key` header.  Call count is incremented on
+        every request (metered billing hook point).
+      operationId: verifyPresentationMetered
+      security:
+        - apiKeyHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyRequest'
+      responses:
+        "200":
+          description: Verification result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerifyResponse'
+        "400":
+          description: Malformed request body
+        "401":
+          description: Missing or invalid API key
+        "403":
+          description: API key is inactive or revoked
+
+  # ── Verifier API key management (admin / holder) ─
+
+  /api/verifier-keys:
+    get:
+      tags: [API key management]
+      summary: List verifier API keys for the authenticated user
+      operationId: listApiKeys
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: API key list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  keys:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/VerifierApiKeyResponse'
+        "401":
+          description: Missing or invalid JWT
+
+    post:
+      tags: [API key management]
+      summary: Create a new verifier API key
+      operationId: createApiKey
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [label]
+              properties:
+                label:
+                  type: string
+                  maxLength: 80
+      responses:
+        "201":
+          description: API key created — raw key value returned **once**, store it securely
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/VerifierApiKeyResponse'
+                  - type: object
+                    properties:
+                      rawKey:
+                        type: string
+                        description: The plaintext API key. Only returned on creation.
+        "401":
+          description: Missing or invalid JWT
+
+  /api/verifier-keys/{id}:
+    delete:
+      tags: [API key management]
+      summary: Revoke a verifier API key
+      operationId: revokeApiKey
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Key revoked
+        "401":
+          description: Missing or invalid JWT
+        "404":
+          description: Key not found
+
+# ─────────────────────────────────────────────
+# Tags (ordering for docs renderers)
+# ─────────────────────────────────────────────
+tags:
+  - name: Issuer identity
+    description: DID document and JWKS endpoints for did:web resolution.
+  - name: Bank connection
+    description: Connect / disconnect an Investec account and retrieve pre-computed claim status.
+  - name: Credentials
+    description: Issue, list, and manage SD-JWT Verifiable Credentials.
+  - name: Verification
+    description: Validate presentations — browser (public) and API-key (metered) variants.
+  - name: API key management
+    description: CRUD for verifier API keys used with the metered `/v1/verify` endpoint.

@@ -1,0 +1,24 @@
+{
+  "generator-jhipster": {
+    "applicationType": "monolith",
+    "authenticationType": "jwt",
+    "baseName": "tshepoVault",
+    "buildTool": "maven",
+    "cacheProvider": "ehcache",
+    "clientFramework": "react",
+    "databaseType": "sql",
+    "devDatabaseType": "h2Disk",
+    "enableHibernateCache": true,
+    "enableTranslation": false,
+    "entities": [],
+    "jhipsterVersion": "9.0.0",
+    "jwtSecretKey": "YmM2NzRjNTEwNTE2OWNhNjk2ZjVlYWQ1OTI3MzdhODhhOGY1MGRkZjI0ZDkxMTZiZGQ0MmU3Njg3MTMyMDIzMWQ3NGIwNDljMzMyYzhhMWM3MGU0MWE4ZGY3ZWUxYzIwODZkOTgzZGMzM2Q2MDdmZDJmNDNkMzdlODY1YmRiNzA=",
+    "languages": ["en"],
+    "nativeLanguage": "en",
+    "packageName": "app.tshepo",
+    "prodDatabaseType": "postgresql",
+    "serverPort": "8080",
+    "serviceDiscoveryType": "no",
+    "testFrameworks": ["cypress"]
+  }
+}
