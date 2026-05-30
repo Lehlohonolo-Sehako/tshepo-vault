@@ -1,4 +1,4 @@
-/* Tshepo design system — matches design/index.html exactly */
+/* Tshepo design system — matches design/index.html and design/landing.html */
 
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
 
@@ -487,4 +487,212 @@
     opacity: 1;
     transform: none;
   }
+}
+
+/* =====================================================================
+   Landing page — backgrounds, animations, layout helpers
+   ===================================================================== */
+
+.ts-landing {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  background: var(--ts-page);
+  min-height: 100vh;
+  color: var(--ts-charcoal);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  ::selection {
+    background: rgba(0, 169, 224, 0.18);
+  }
+}
+
+.ts-hero-wash {
+  background:
+    radial-gradient(1100px 480px at 78% -8%, rgba(0, 169, 224, 0.1), transparent 60%),
+    radial-gradient(700px 380px at 8% 8%, rgba(0, 169, 224, 0.05), transparent 55%);
+}
+
+.ts-guilloche {
+  background-image:
+    radial-gradient(circle at 18% 30%, rgba(0, 169, 224, 0.06), transparent 38%),
+    radial-gradient(circle at 88% 14%, rgba(0, 169, 224, 0.05), transparent 30%);
+}
+
+.ts-grid-dots {
+  background-image: radial-gradient(rgba(0, 0, 0, 0.045) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+.ts-reveal {
+  transform: translateY(16px);
+  transition: transform 0.6s cubic-bezier(0.22, 0.61, 0.36, 1);
+
+  &.in {
+    transform: none;
+  }
+}
+
+.ts-float-card {
+  animation: ts-floaty 7s ease-in-out infinite;
+}
+
+@keyframes ts-floaty {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-9px);
+  }
+}
+
+.ts-marquee-track {
+  animation: ts-scrollx 26s linear infinite;
+}
+
+@keyframes ts-scrollx {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.ts-masked {
+  filter: blur(5px);
+  user-select: none;
+}
+
+/* Landing nav */
+.ts-lnav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  height: 68px;
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  transition:
+    background 300ms,
+    border-color 300ms,
+    backdrop-filter 300ms;
+  border-bottom: 1px solid transparent;
+
+  &--solid {
+    background: rgba(255, 255, 255, 0.88);
+    backdrop-filter: blur(12px);
+    border-color: var(--ts-border);
+  }
+
+  &__inner {
+    max-width: 1180px;
+    width: 100%;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  &__links {
+    display: flex;
+    align-items: center;
+    gap: 32px;
+    font-size: 14px;
+    color: rgba(26, 26, 26, 0.72);
+
+    a {
+      text-decoration: none;
+      color: inherit;
+      transition: color 150ms;
+
+      &:hover {
+        color: var(--ts-charcoal);
+      }
+    }
+
+    @media (max-width: 768px) {
+      display: none;
+    }
+  }
+
+  &__actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+}
+
+/* Landing wordmark */
+.ts-wordmark {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: inherit;
+  user-select: none;
+
+  &__text {
+    font-size: 19px;
+    letter-spacing: -0.5px;
+    color: var(--ts-charcoal);
+    line-height: 1;
+  }
+}
+
+/* Landing section wrapper */
+.ts-section {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 96px 24px;
+
+  &--sm {
+    padding-top: 64px;
+    padding-bottom: 64px;
+  }
+}
+
+/* Showcase point */
+.ts-showcase-point {
+  display: flex;
+  gap: 14px;
+
+  &__icon {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    border-radius: 11px;
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--ts-brand);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 2px;
+  }
+
+  &__title {
+    font-size: 15px;
+    font-weight: 500;
+    color: #fff;
+  }
+
+  &__body {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.55);
+    line-height: 1.65;
+    margin-top: 2px;
+  }
+}
+
+/* Landing button — thin wrapper over ts-btn for anchor tags */
+a.ts-btn {
+  text-decoration: none;
 }

@@ -11,6 +11,15 @@ public class InvestecProperties {
     private String clientSecret;
     private String apiBase = "https://openapi.investec.com";
     private String tokenUri = "https://identity.investec.com/am/oauth2/access_token";
+    private String authorizeUri = "https://identity.investec.com/am/oauth2/alpha/authorize";
+
+    public String getAuthorizeUri() {
+        return authorizeUri;
+    }
+
+    public void setAuthorizeUri(String authorizeUri) {
+        this.authorizeUri = authorizeUri;
+    }
 
     public String getClientId() {
         return clientId;

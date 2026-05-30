@@ -73,6 +73,7 @@ public class SecurityConfiguration {
                     .requestMatchers("/api/activate").permitAll()
                     .requestMatchers("/api/account/reset-password/init").permitAll()
                     .requestMatchers("/api/account/reset-password/finish").permitAll()
+                    .requestMatchers("/api/auth/investec/**").permitAll()
                     .requestMatchers(HttpMethod.POST, "/api/verify").permitAll()
                     .requestMatchers(HttpMethod.POST, "/v1/verify").permitAll()
                     .requestMatchers("/.well-known/**").permitAll()

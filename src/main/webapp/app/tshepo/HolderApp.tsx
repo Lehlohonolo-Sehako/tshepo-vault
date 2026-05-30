@@ -276,9 +276,32 @@ function ConnectScreen({ onConnected }: { onConnected: () => void }) {
 
 // ----- Credential Card -----
 
+function ClaimPills({ claims, dark = false }: { claims?: ComputedClaim[]; dark?: boolean }) {
+  if (!claims?.length) return null;
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 12 }}>
+      {claims.map((c, i) => (
+        <span
+          key={i}
+          style={{
+            fontSize: 11,
+            padding: '2px 8px',
+            borderRadius: 100,
+            fontWeight: 500,
+            background: dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,169,224,0.08)',
+            color: dark ? 'rgba(255,255,255,0.7)' : 'var(--ts-brand)',
+            border: dark ? '1px solid rgba(255,255,255,0.15)' : '1px solid rgba(0,169,224,0.2)',
+          }}
+        >
+          {claimTypeShortLabel(c.type)}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function CredentialCard({ cred, style, onClick }: { cred: CredentialResponse; style: 'passport' | 'minimal'; onClick: () => void }) {
   const isExpired = cred.status === 'EXPIRED' || (cred.expiresAt && new Date(cred.expiresAt) < new Date());
-  const claimCount = cred.claimCount ?? cred.claims?.length ?? 0;
 
   if (style === 'passport') {
     return (
@@ -299,23 +322,21 @@ function CredentialCard({ cred, style, onClick }: { cred: CredentialResponse; st
             {cred.status ?? 'ACTIVE'}
           </span>
         </div>
-        <div style={{ fontSize: 18, fontWeight: 700, marginTop: 28, letterSpacing: '-0.3px', position: 'relative' }}>{cred.title}</div>
-        {cred.purpose && <div style={{ fontSize: 13, opacity: 0.6, marginTop: 6, position: 'relative' }}>{cred.purpose}</div>}
+        <div style={{ fontSize: 18, fontWeight: 700, marginTop: 20, letterSpacing: '-0.3px', position: 'relative' }}>{cred.title}</div>
+        {cred.purpose && <div style={{ fontSize: 12.5, opacity: 0.55, marginTop: 4, position: 'relative' }}>{cred.purpose}</div>}
+        <ClaimPills claims={cred.claims} dark />
         <div
           style={{
-            marginTop: 24,
-            paddingTop: 16,
+            marginTop: 16,
+            paddingTop: 14,
             borderTop: '1px solid rgba(255,255,255,0.1)',
             display: 'flex',
-            justifyContent: 'space-between',
+            justifyContent: 'flex-end',
             position: 'relative',
           }}
         >
-          <div style={{ fontSize: 12, opacity: 0.5 }}>
-            {claimCount} claim{claimCount !== 1 ? 's' : ''}
-          </div>
           {cred.expiresAt && (
-            <div style={{ fontSize: 12, opacity: 0.5 }}>Expires {new Date(cred.expiresAt).toLocaleDateString('en-ZA')}</div>
+            <div style={{ fontSize: 11.5, opacity: 0.45 }}>Expires {new Date(cred.expiresAt).toLocaleDateString('en-ZA')}</div>
           )}
         </div>
       </div>
@@ -328,13 +349,13 @@ function CredentialCard({ cred, style, onClick }: { cred: CredentialResponse; st
         <div style={{ fontSize: 15, fontWeight: 600 }}>{cred.title}</div>
         <span className={`ts-pill ts-pill--${isExpired ? 'muted' : 'success'}`}>{cred.status ?? 'ACTIVE'}</span>
       </div>
-      {cred.purpose && <div style={{ fontSize: 13, color: 'var(--ts-muted)', marginTop: 4 }}>{cred.purpose}</div>}
-      <div style={{ marginTop: 14, display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--ts-muted)' }}>
-        <span>
-          {claimCount} claim{claimCount !== 1 ? 's' : ''}
-        </span>
-        {cred.expiresAt && <span>Expires {new Date(cred.expiresAt).toLocaleDateString('en-ZA')}</span>}
-      </div>
+      {cred.purpose && <div style={{ fontSize: 13, color: 'var(--ts-muted)', marginTop: 3 }}>{cred.purpose}</div>}
+      <ClaimPills claims={cred.claims} />
+      {cred.expiresAt && (
+        <div style={{ marginTop: 10, fontSize: 12, color: 'var(--ts-muted)' }}>
+          Expires {new Date(cred.expiresAt).toLocaleDateString('en-ZA')}
+        </div>
+      )}
     </div>
   );
 }
@@ -865,6 +886,17 @@ function formatClaimLabel(c: ComputedClaim): string {
   return labels[c.type] ?? c.type;
 }
 
+function claimTypeShortLabel(type: string): string {
+  const labels: Record<string, string> = {
+    INFLOW: 'Avg inflow',
+    BALANCE: 'Balance',
+    TENURE: 'Tenure',
+    SALARY_CONTINUITY: 'Salary',
+    NO_OVERDRAFT: 'No overdraft',
+  };
+  return labels[type] ?? type;
+}
+
 // ----- App Shell -----
 
 export default function HolderApp() {
@@ -887,7 +919,17 @@ export default function HolderApp() {
           tshepo<span>.</span>
         </div>
         <div className="ts-nav__actions">
-          <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>Holder</span>
+          <button
+            onClick={() => {
+              localStorage.removeItem('jhi-authenticationToken');
+              sessionStorage.removeItem('jhi-authenticationToken');
+              window.location.href = '/';
+            }}
+            className="ts-btn ts-btn--ghost ts-btn--sm"
+            style={{ color: 'rgba(255,255,255,0.6)', borderColor: 'rgba(255,255,255,0.15)' }}
+          >
+            Sign out
+          </button>
         </div>
       </nav>
 

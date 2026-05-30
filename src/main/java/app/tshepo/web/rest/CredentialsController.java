@@ -1,12 +1,10 @@
 package app.tshepo.web.rest;
 
-import app.tshepo.domain.Credential;
 import app.tshepo.security.SecurityUtils;
 import app.tshepo.service.CredentialIssuanceService;
 import app.tshepo.service.PresentationService;
 import app.tshepo.web.rest.api.CredentialsApi;
 import app.tshepo.web.rest.vm.*;
-import java.util.List;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
@@ -33,27 +31,20 @@ public class CredentialsController implements CredentialsApi {
 
     @Override
     public ResponseEntity<CredentialListResponse> listCredentials(String status, Integer page, Integer size) {
-        String login = currentLogin();
-        int p = page != null ? page : 0;
-        int s = size != null ? size : 20;
-        Page<Credential> credPage = issuanceService.listCredentials(login, p, s);
-
-        List<CredentialResponse> items = credPage
-            .getContent()
-            .stream()
-            .map(c -> CredentialIssuanceService.toCredentialResponse(c, null))
-            .toList();
-
+        Page<CredentialResponse> credPage = issuanceService.listCredentials(
+            currentLogin(),
+            page != null ? page : 0,
+            size != null ? size : 20
+        );
         CredentialListResponse response = new CredentialListResponse();
-        response.setCredentials(items);
+        response.setCredentials(credPage.getContent());
         response.setTotal((int) credPage.getTotalElements());
         return ResponseEntity.ok(response);
     }
 
     @Override
     public ResponseEntity<CredentialResponse> getCredential(UUID id) {
-        Credential cred = issuanceService.getCredential(currentLogin(), id);
-        return ResponseEntity.ok(CredentialIssuanceService.toCredentialResponse(cred, null));
+        return ResponseEntity.ok(issuanceService.getCredential(currentLogin(), id));
     }
 
     @Override
@@ -64,8 +55,7 @@ public class CredentialsController implements CredentialsApi {
 
     @Override
     public ResponseEntity<CredentialResponse> revokeCredential(UUID id) {
-        Credential cred = issuanceService.revokeCredential(currentLogin(), id);
-        return ResponseEntity.ok(CredentialIssuanceService.toCredentialResponse(cred, null));
+        return ResponseEntity.ok(issuanceService.revokeCredential(currentLogin(), id));
     }
 
     private static String currentLogin() {

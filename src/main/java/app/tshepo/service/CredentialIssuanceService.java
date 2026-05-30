@@ -20,6 +20,8 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.Arrays;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -136,24 +138,31 @@ public class CredentialIssuanceService {
     }
 
     @Transactional(readOnly = true)
-    public Page<Credential> listCredentials(String holderLogin, int page, int size) {
-        return credentialRepository.findAllByHolderLoginOrderByIssuedAtDesc(holderLogin, PageRequest.of(page, size));
+    public Page<CredentialResponse> listCredentials(String holderLogin, int page, int size) {
+        return credentialRepository
+            .findAllByHolderLoginOrderByIssuedAtDesc(holderLogin, PageRequest.of(page, size))
+            .map(c -> toCredentialResponse(c, null));
     }
 
     @Transactional(readOnly = true)
-    public Credential getCredential(String holderLogin, UUID credentialUuid) {
-        return credentialRepository
+    public CredentialResponse getCredential(String holderLogin, UUID credentialUuid) {
+        Credential cred = credentialRepository
             .findByCredentialUuidAndHolderLogin(credentialUuid, holderLogin)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Credential not found"));
+        return toCredentialResponse(cred, null);
     }
 
-    public Credential revokeCredential(String holderLogin, UUID credentialUuid) {
-        Credential cred = getCredential(holderLogin, credentialUuid);
+    @Transactional
+    public CredentialResponse revokeCredential(String holderLogin, UUID credentialUuid) {
+        Credential cred = credentialRepository
+            .findByCredentialUuidAndHolderLogin(credentialUuid, holderLogin)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Credential not found"));
         if (cred.getStatus() != CredentialStatus.ACTIVE) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Credential is already revoked or expired");
         }
         cred.setStatus(CredentialStatus.REVOKED);
-        return credentialRepository.save(cred);
+        Credential saved = credentialRepository.save(cred);
+        return toCredentialResponse(saved, null);
     }
 
     // --- mapping helpers ---
@@ -174,6 +183,26 @@ public class CredentialIssuanceService {
         if (claims != null) {
             r.setClaims(claims);
             r.setClaimCount(claims.size());
+        } else if (cred.getClaimsSummary() != null && !cred.getClaimsSummary().isBlank()) {
+            // Parse the stored summary string ("INFLOW, TENURE") into minimal stubs for list views.
+            // Threshold is unknown here — the frontend uses type-only labels for cards.
+            List<ComputedClaim> stubs = Arrays.stream(cred.getClaimsSummary().split(",\\s*"))
+                .filter(t -> !t.isBlank())
+                .<ComputedClaim>map(t -> {
+                    try {
+                        return new ComputedClaim()
+                            .type(app.tshepo.web.rest.vm.ClaimType.fromValue(t.trim()))
+                            .met(true)
+                            .operator("GTE")
+                            .threshold(BigDecimal.ZERO);
+                    } catch (IllegalArgumentException ignored) {
+                        return null;
+                    }
+                })
+                .filter(Objects::nonNull)
+                .toList();
+            r.setClaims(stubs);
+            r.setClaimCount(stubs.size());
         } else {
             r.setClaimCount(cred.getClaimses() != null ? cred.getClaimses().size() : 0);
         }

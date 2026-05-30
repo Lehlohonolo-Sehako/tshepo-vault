@@ -121,3 +121,4 @@ investec:
   client-secret: ${INVESTEC_CLIENT_SECRET:fixture-client-secret}
   api-base: ${INVESTEC_API_BASE:https://openapi.investec.com}
   token-uri: ${INVESTEC_TOKEN_URI:https://identity.investec.com/am/oauth2/access_token}
+  authorize-uri: ${INVESTEC_AUTHORIZE_URI:https://identity.investec.com/am/oauth2/alpha/authorize}

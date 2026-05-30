@@ -4,21 +4,16 @@ import './tshepo/tshepo.scss';
 import 'app/config/dayjs';
 
 import React, { useEffect } from 'react';
-import { Card } from 'react-bootstrap';
 import { BrowserRouter, useLocation } from 'react-router';
 
 import { ToastContainer } from 'react-toastify';
 
 import { useAppDispatch, useAppSelector } from 'app/config/store';
-import AppRoutes from 'app/routes';
-import { hasAnyAuthority } from 'app/shared/auth/private-route';
-import ErrorBoundary from 'app/shared/error/error-boundary';
-import { Authority } from 'app/shared/jhipster/constants';
-import Footer from 'app/shared/layout/footer/footer';
-import Header from 'app/shared/layout/header/header';
 import { getProfile } from 'app/shared/reducers/application-profile';
 import { getSession } from 'app/shared/reducers/authentication';
 import HolderApp from 'app/tshepo/HolderApp';
+import LandingPage from 'app/tshepo/LandingPage';
+import OAuthCallback from 'app/tshepo/OAuthCallback';
 import VerifierPage from 'app/tshepo/VerifierPage';
 
 const baseHref = document.querySelector('base').getAttribute('href').replace(/\/$/, '');
@@ -27,15 +22,18 @@ const AppInner = () => {
   const location = useLocation();
   const isAuthenticated = useAppSelector(state => state.authentication.isAuthenticated);
   const sessionHasBeenFetched = useAppSelector(state => state.authentication.sessionHasBeenFetched);
-  const isAdmin = useAppSelector(state => hasAnyAuthority(state.authentication.account.authorities, [Authority.ADMIN]));
-  const ribbonEnv = useAppSelector(state => state.applicationProfile.ribbonEnv);
-  const isInProduction = useAppSelector(state => state.applicationProfile.inProduction);
-  const isOpenAPIEnabled = useAppSelector(state => state.applicationProfile.isOpenAPIEnabled);
 
+  // OAuth callback — must be handled before the auth check so the token can be stored.
+  if (location.pathname === '/oauth-callback') {
+    return <OAuthCallback />;
+  }
+
+  // Public verifier page — no auth required.
   if (location.pathname === '/verify') {
     return <VerifierPage />;
   }
 
+  // Authenticated holder — render the full holder app.
   if (sessionHasBeenFetched && isAuthenticated) {
     return (
       <>
@@ -45,28 +43,15 @@ const AppInner = () => {
     );
   }
 
-  return (
-    <div className="app-container" style={{ paddingTop: '60px' }}>
-      <ToastContainer position="top-left" className="toastify-container" toastClassName="toastify-toast" />
-      <ErrorBoundary>
-        <Header
-          isAuthenticated={isAuthenticated}
-          isAdmin={isAdmin}
-          ribbonEnv={ribbonEnv}
-          isInProduction={isInProduction}
-          isOpenAPIEnabled={isOpenAPIEnabled}
-        />
-      </ErrorBoundary>
-      <div className="container-fluid view-container" id="app-view-container">
-        <Card className="jh-card">
-          <ErrorBoundary>
-            <AppRoutes />
-          </ErrorBoundary>
-        </Card>
-        <Footer />
-      </div>
-    </div>
-  );
+  // Session still loading — render nothing to avoid a flash of the landing page
+  // for users who are already logged in.
+  if (!sessionHasBeenFetched) {
+    return null;
+  }
+
+  // Not authenticated (any path) — always show the landing page.
+  // This replaces /login, /account/register, and all other JHipster auth routes.
+  return <LandingPage />;
 };
 
 export const App = () => {

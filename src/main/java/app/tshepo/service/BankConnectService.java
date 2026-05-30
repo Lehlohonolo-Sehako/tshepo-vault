@@ -42,24 +42,28 @@ public class BankConnectService {
         this.objectMapper = objectMapper;
     }
 
-    public BankStatusResponse connectBank(String holderLogin, String authCode, String redirectUri) {
-        // Exchange auth code for bearer token
-        InvestecTokenPair tokenPair = investecClient.exchangeAuthCode(authCode, redirectUri);
-
-        // Pull account metadata
+    /** Called during OAuth callback where the token exchange has already been done. */
+    public BankStatusResponse connectBankWithTokens(String holderLogin, InvestecTokenPair tokenPair) {
         List<InvestecAccount> accounts = investecClient.getAccounts(tokenPair.accessToken());
+        return upsertConnection(holderLogin, tokenPair, accounts);
+    }
+
+    public BankStatusResponse connectBank(String holderLogin, String authCode, String redirectUri) {
+        InvestecTokenPair tokenPair = investecClient.exchangeAuthCode(authCode, redirectUri);
+        List<InvestecAccount> accounts = investecClient.getAccounts(tokenPair.accessToken());
+        return upsertConnection(holderLogin, tokenPair, accounts);
+    }
+
+    private BankStatusResponse upsertConnection(String holderLogin, InvestecTokenPair tokenPair, List<InvestecAccount> accounts) {
         InvestecAccount account = accounts.isEmpty() ? null : accounts.get(0);
         String maskedAccount = account != null ? maskAccount(account.accountNumber()) : null;
         String accountType = account != null ? account.productName() : null;
         String accountId = account != null ? account.accountId() : "unknown";
 
-        // Pre-compute all supported claim predicates — discard raw data after
         List<ComputedClaim> computedClaims = predicateService.computeAllClaims(tokenPair.accessToken(), accountId);
         String claimsJson = serializeClaims(computedClaims);
 
-        // Upsert BankConnection (one per holder)
         BankConnection conn = bankConnectionRepository.findByHolderLogin(holderLogin).orElse(new BankConnection());
-
         conn.setHolderLogin(holderLogin);
         conn.setConnectedAt(Instant.now());
         conn.setStatus(BankConnectionStatus.CONNECTED);
