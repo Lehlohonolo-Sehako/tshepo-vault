@@ -1,0 +1,47 @@
+{
+  "annotations": {
+    "changelogDate": "20260529175235"
+  },
+  "applications": ["*"],
+  "documentation": "Append-only audit log of every verification attempt.\\napiKey is null when the check came from the public browser page.\\ndisclosedClaims records which ClaimType values the holder revealed —\\nstored as a JSON array string for portability.",
+  "dto": "mapstruct",
+  "fields": [
+    {
+      "fieldName": "verifiedAt",
+      "fieldType": "Instant",
+      "fieldValidateRules": ["required"]
+    },
+    {
+      "fieldName": "result",
+      "fieldType": "VerificationResult",
+      "fieldValidateRules": ["required"],
+      "fieldValues": "VALID,INVALID_SIGNATURE,EXPIRED,REVOKED,MALFORMED,UNTRUSTED_ISSUER"
+    },
+    {
+      "documentation": "JSON array of ClaimType strings that were disclosed.",
+      "fieldName": "disclosedClaims",
+      "fieldType": "TextBlob"
+    },
+    {
+      "documentation": "URN reference to the credential that was presented (for audit).",
+      "fieldName": "credentialRef",
+      "fieldType": "String",
+      "fieldValidateRules": ["maxlength"],
+      "fieldValidateRulesMaxlength": "200"
+    }
+  ],
+  "jpaMetamodelFiltering": true,
+  "name": "VerificationEvent",
+  "pagination": "pagination",
+  "relationships": [
+    {
+      "otherEntityField": "label",
+      "otherEntityName": "verifierApiKey",
+      "relationshipName": "apiKey",
+      "relationshipSide": "left",
+      "relationshipType": "many-to-one"
+    }
+  ],
+  "searchEngine": "no",
+  "service": "serviceClass"
+}

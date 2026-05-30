@@ -23,6 +23,7 @@ info:
     name: Tshepo Engineering
   license:
     name: MIT
+    identifier: MIT
 
 servers:
   - url: http://localhost:8080
@@ -50,7 +51,6 @@ components:
   # Shared schemas
   # ─────────────────────────────────────────────
   schemas:
-
     # ── Bank connection ──────────────────────────
     BankConnectRequest:
       type: object
@@ -75,7 +75,7 @@ components:
           nullable: true
         maskedAccount:
           type: string
-          example: "•••• 4821"
+          example: '•••• 4821'
           nullable: true
         status:
           type: string
@@ -95,7 +95,7 @@ components:
         operator:
           type: string
           enum: [GTE, LTE, EQ]
-          description: "GTE = ≥, LTE = ≤, EQ = ="
+          description: 'GTE = ≥, LTE = ≤, EQ = ='
         threshold:
           type: number
           description: Numeric threshold value (Rands for monetary claims, months for tenure).
@@ -124,7 +124,7 @@ components:
         basis:
           type: string
           description: Human-readable source description shown to holder only (never in credential).
-          example: "Last 6 months"
+          example: 'Last 6 months'
 
     # ── Credential ───────────────────────────────
     CredentialIssueRequest:
@@ -134,11 +134,11 @@ components:
         title:
           type: string
           maxLength: 120
-          example: "Proof of income — rental application"
+          example: 'Proof of income — rental application'
         purpose:
           type: string
           maxLength: 200
-          example: "For a residential lease"
+          example: 'For a residential lease'
         claims:
           type: array
           minItems: 1
@@ -175,11 +175,11 @@ components:
           format: date-time
         issuerDid:
           type: string
-          example: "did:web:tshepo.app"
+          example: 'did:web:tshepo.app'
         vcRef:
           type: string
           description: URN reference for the credential.
-          example: "urn:vc:tshepo:8f3a-1d92"
+          example: 'urn:vc:tshepo:8f3a-1d92'
         claims:
           type: array
           items:
@@ -216,7 +216,7 @@ components:
         token:
           type: string
           description: Compact SD-JWT presentation token.
-          example: "tshpo_pres_8f3a91c4d2e07b65..."
+          example: 'tshpo_pres_8f3a91c4d2e07b65...'
         qrDataUrl:
           type: string
           description: Data URL of a QR code encoding the token (PNG, base64).
@@ -249,7 +249,7 @@ components:
         issuerDid:
           type: string
           nullable: true
-          example: "did:web:tshepo.app"
+          example: 'did:web:tshepo.app'
         holderDid:
           type: string
           nullable: true
@@ -306,13 +306,13 @@ components:
       type: object
       description: W3C DID document for did:web resolution.
       properties:
-        "@context":
+        '@context':
           type: array
           items:
             type: string
         id:
           type: string
-          example: "did:web:tshepo.app"
+          example: 'did:web:tshepo.app'
         verificationMethod:
           type: array
           items:
@@ -353,7 +353,6 @@ components:
 # Paths
 # ─────────────────────────────────────────────
 paths:
-
   # ── Well-known / issuer identity ────────────
 
   /.well-known/did.json:
@@ -365,7 +364,7 @@ paths:
         fetches this endpoint.  Must be publicly reachable over HTTPS.
       operationId: getDidDocument
       responses:
-        "200":
+        '200':
           description: DID document
           content:
             application/json:
@@ -381,7 +380,7 @@ paths:
         Verifiers fetch this to validate the issuer's cryptographic assertions.
       operationId: getJwks
       responses:
-        "200":
+        '200':
           description: JWKS
           content:
             application/json:
@@ -409,21 +408,21 @@ paths:
             schema:
               $ref: '#/components/schemas/BankConnectRequest'
       responses:
-        "200":
+        '200':
           description: Bank connected and claims pre-computed
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/BankStatusResponse'
-        "400":
+        '400':
           description: Invalid authorization code or redirect URI
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
-        "401":
+        '401':
           description: Missing or invalid JWT
-        "502":
+        '502':
           description: Investec API unreachable or returned an error
 
   /api/bank/status:
@@ -434,13 +433,13 @@ paths:
       security:
         - bearerAuth: []
       responses:
-        "200":
+        '200':
           description: Current connection status for the authenticated holder
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/BankStatusResponse'
-        "401":
+        '401':
           description: Missing or invalid JWT
 
   /api/bank/claims:
@@ -455,7 +454,7 @@ paths:
       security:
         - bearerAuth: []
       responses:
-        "200":
+        '200':
           description: Available claims
           content:
             application/json:
@@ -466,9 +465,9 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/ComputedClaim'
-        "401":
+        '401':
           description: Missing or invalid JWT
-        "409":
+        '409':
           description: No bank account connected yet
 
   # ── Credential issuance (holder, JWT-secured) ─
@@ -498,13 +497,13 @@ paths:
             type: integer
             default: 20
       responses:
-        "200":
+        '200':
           description: Paginated credential list
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/CredentialListResponse'
-        "401":
+        '401':
           description: Missing or invalid JWT
 
   /api/credentials/issue:
@@ -526,21 +525,21 @@ paths:
             schema:
               $ref: '#/components/schemas/CredentialIssueRequest'
       responses:
-        "201":
+        '201':
           description: Credential issued
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/CredentialResponse'
-        "400":
+        '400':
           description: Invalid request or claim threshold not met
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
-        "401":
+        '401':
           description: Missing or invalid JWT
-        "409":
+        '409':
           description: No bank account connected
 
   /api/credentials/{id}:
@@ -558,15 +557,15 @@ paths:
             type: string
             format: uuid
       responses:
-        "200":
+        '200':
           description: Credential detail
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/CredentialResponse'
-        "401":
+        '401':
           description: Missing or invalid JWT
-        "404":
+        '404':
           description: Credential not found or not owned by caller
 
   /api/credentials/{id}/revoke:
@@ -584,17 +583,17 @@ paths:
             type: string
             format: uuid
       responses:
-        "200":
+        '200':
           description: Credential revoked
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/CredentialResponse'
-        "401":
+        '401':
           description: Missing or invalid JWT
-        "404":
+        '404':
           description: Credential not found
-        "409":
+        '409':
           description: Credential is already revoked or expired
 
   /api/credentials/{id}/present:
@@ -623,23 +622,23 @@ paths:
             schema:
               $ref: '#/components/schemas/PresentRequest'
       responses:
-        "200":
+        '200':
           description: Presentation token + QR
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/PresentationResponse'
-        "400":
+        '400':
           description: Requested claim types not present in this credential
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
-        "401":
+        '401':
           description: Missing or invalid JWT
-        "404":
+        '404':
           description: Credential not found
-        "410":
+        '410':
           description: Credential is revoked or expired
 
   # ── Verification (public) ────────────────────
@@ -665,19 +664,19 @@ paths:
             schema:
               $ref: '#/components/schemas/VerifyRequest'
       responses:
-        "200":
+        '200':
           description: Verification result (check `valid` field)
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/VerifyResponse'
-        "400":
+        '400':
           description: Malformed request body
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
-        "429":
+        '429':
           description: Rate limit exceeded — use the API-key endpoint
 
   /v1/verify:
@@ -698,17 +697,17 @@ paths:
             schema:
               $ref: '#/components/schemas/VerifyRequest'
       responses:
-        "200":
+        '200':
           description: Verification result
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/VerifyResponse'
-        "400":
+        '400':
           description: Malformed request body
-        "401":
+        '401':
           description: Missing or invalid API key
-        "403":
+        '403':
           description: API key is inactive or revoked
 
   # ── Verifier API key management (admin / holder) ─
@@ -721,7 +720,7 @@ paths:
       security:
         - bearerAuth: []
       responses:
-        "200":
+        '200':
           description: API key list
           content:
             application/json:
@@ -732,7 +731,7 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/VerifierApiKeyResponse'
-        "401":
+        '401':
           description: Missing or invalid JWT
 
     post:
@@ -753,7 +752,7 @@ paths:
                   type: string
                   maxLength: 80
       responses:
-        "201":
+        '201':
           description: API key created — raw key value returned **once**, store it securely
           content:
             application/json:
@@ -765,7 +764,7 @@ paths:
                       rawKey:
                         type: string
                         description: The plaintext API key. Only returned on creation.
-        "401":
+        '401':
           description: Missing or invalid JWT
 
   /api/verifier-keys/{id}:
@@ -783,11 +782,11 @@ paths:
             type: string
             format: uuid
       responses:
-        "204":
+        '204':
           description: Key revoked
-        "401":
+        '401':
           description: Missing or invalid JWT
-        "404":
+        '404':
           description: Key not found
 
 # ─────────────────────────────────────────────

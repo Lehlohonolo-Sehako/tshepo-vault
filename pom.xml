@@ -67,6 +67,7 @@
         <spotless-maven-plugin.version>3.3.0</spotless-maven-plugin.version>
         <spring.profiles.active>dev</spring.profiles.active>
         <springdoc-openapi-starter-webmvc-api.version>3.0.2</springdoc-openapi-starter-webmvc-api.version>
+        <openapi-generator-maven-plugin.version>7.9.0</openapi-generator-maven-plugin.version>
     </properties>
 
     <dependencies>
@@ -367,9 +368,53 @@
                 <groupId>org.sonarsource.scanner.maven</groupId>
                 <artifactId>sonar-maven-plugin</artifactId>
             </plugin>
+            <plugin>
+                <groupId>org.openapitools</groupId>
+                <artifactId>openapi-generator-maven-plugin</artifactId>
+            </plugin>
         </plugins>
         <pluginManagement>
             <plugins>
+                <plugin>
+                    <groupId>org.openapitools</groupId>
+                    <artifactId>openapi-generator-maven-plugin</artifactId>
+                    <version>${openapi-generator-maven-plugin.version}</version>
+                    <executions>
+                        <execution>
+                            <id>generate-api-interfaces</id>
+                            <goals>
+                                <goal>generate</goal>
+                            </goals>
+                            <configuration>
+                                <inputSpec>${project.basedir}/src/main/resources/swagger/api.yml</inputSpec>
+                                <generatorName>spring</generatorName>
+                                <apiPackage>app.tshepo.web.rest.api</apiPackage>
+                                <modelPackage>app.tshepo.web.rest.vm</modelPackage>
+                                <generateSupportingFiles>false</generateSupportingFiles>
+                                <generateApiTests>false</generateApiTests>
+                                <generateModelTests>false</generateModelTests>
+                                <generateApiDocumentation>false</generateApiDocumentation>
+                                <generateModelDocumentation>false</generateModelDocumentation>
+                                <configOptions>
+                                    <!-- Interfaces only — controllers implement these -->
+                                    <interfaceOnly>true</interfaceOnly>
+                                    <!-- Spring Boot 3 / Jakarta EE -->
+                                    <useSpringBoot3>true</useSpringBoot3>
+                                    <useJakartaEe>true</useJakartaEe>
+                                    <!-- Group operations by OpenAPI tag -->
+                                    <useTags>true</useTags>
+                                    <!-- No default method bodies in interfaces -->
+                                    <skipDefaultInterface>true</skipDefaultInterface>
+                                    <!-- Avoid jackson-databind-nullable dependency -->
+                                    <openApiNullable>false</openApiNullable>
+                                    <!-- Use standard Java types -->
+                                    <dateLibrary>java8</dateLibrary>
+                                    <java8>true</java8>
+                                </configOptions>
+                            </configuration>
+                        </execution>
+                    </executions>
+                </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-antrun-plugin</artifactId>

@@ -1,267 +1,211 @@
-# tshepoVault
+# Tshepo — Bank-attested proof-of-funds credentials
 
-This application was generated using JHipster 9.0.0, you can find documentation and help at [https://www.jhipster.tech/documentation-archive/v9.0.0](https://www.jhipster.tech/documentation-archive/v9.0.0).
+> **"Tshepo"** means _trust_ and _hope_ in Sesotho and Setswana.
 
-## Project Structure
+Tshepo turns an Investec account into a private, bank-attested Verifiable Credential.
+A holder proves "average monthly inflow ≥ R30,000" to a landlord or lender — without revealing a single transaction. Privacy-by-design is the core selling point.
 
-Node is required for generation and recommended for development. `package.json` is always generated for a better development experience with prettier, commit hooks, scripts and so on.
+---
 
-In the project root, JHipster generates configuration files for tools like git, prettier, eslint, husky, and others that are well known and you can find references in the web.
+## What it does
 
-`/src/*` structure follows default Java structure.
+1. **Connect** — holder links their Investec account (read-only OAuth2).
+2. **Issue** — backend computes predicates in memory (avg inflow, balance, tenure…), builds a selectively-disclosable SD-JWT VC signed by the issuer key, and persists only the boolean results. Raw transactions are never stored.
+3. **Present** — holder picks exactly which claims to reveal; a QR/token is generated. Claims not selected are cryptographically hidden — the verifier cannot even tell they exist.
+4. **Verify** — verifier pastes the token (or calls the metered REST API) and receives a clear valid/invalid verdict showing only the disclosed claims.
 
-- `.yo-rc.json` - Yeoman configuration file
-  JHipster configuration is stored in this file at `generator-jhipster` key. You may find `generator-jhipster-*` for specific blueprints configuration.
-- `.yo-resolve` (optional) - Yeoman conflict resolver
-  Allows to use a specific action when conflicts are found skipping prompts for files that matches a pattern. Each line should match `[pattern] [action]` with pattern been a [Minimatch](https://github.com/isaacs/minimatch#minimatch) pattern and action been one of skip (default if omitted) or force. Lines starting with `#` are considered comments and are ignored.
-- `.jhipster/*.json` - JHipster entity configuration files
+---
 
-- `npmw` - wrapper to use locally installed npm.
-  JHipster installs Node and npm locally using the build tool by default. This wrapper makes sure npm is installed locally and uses it avoiding some differences different versions can cause. By using `./npmw` instead of the traditional `npm` you can configure a Node-less environment to develop or test your application.
-- `/src/main/docker` - Docker configurations for the application and services that the application depends on
+## Who it's for
 
-## Development
+| Actor                                         | Surface                                                   |
+| --------------------------------------------- | --------------------------------------------------------- |
+| **Holder** (Investec customer)                | Authenticated SPA — hub-and-spoke around "My credentials" |
+| **Verifier** (landlord, lender, visa officer) | Public `/verify` page + metered REST endpoint             |
 
-The build system will install automatically the recommended version of Node and npm.
+---
 
-We provide a wrapper to launch npm.
-You will only need to run this command when dependencies change in [package.json](package.json).
+## Monetisation
+
+- **Issuance fee** — charged per credential issued.
+- **Metered verify API** — pay-as-you-go `POST /v1/verify` endpoint; call count tracked per API key.
+
+---
+
+## How Investec Programmable Banking is used
+
+Tshepo uses Investec's [Programmable Banking](https://developer.investec.com/za/home) OAuth2 + Accounts API to:
+
+- Authenticate the holder with read-only scope.
+- Pull up to 12 months of account transactions.
+- Compute claim predicates in memory (e.g. mean monthly credit ≥ R30,000).
+- Immediately discard all raw transaction data after predicate evaluation.
+
+No money movement, no write access, no raw data at rest — ever.
+
+---
+
+## Stack
+
+| Layer           | Technology                                         |
+| --------------- | -------------------------------------------------- |
+| Backend         | Spring Boot 4.0.3 · Java 21 · Maven                |
+| Auth            | JWT (JHipster)                                     |
+| Database        | PostgreSQL (prod) · H2 on-disk (dev)               |
+| Migrations      | Liquibase                                          |
+| VC layer        | SD-JWT VC via Nimbus JOSE+JWT                      |
+| Issuer identity | `did:web` — JWKS served over HTTPS                 |
+| Frontend        | React 19 · TypeScript · Webpack                    |
+| API contract    | OpenAPI 3.1 (`src/main/resources/swagger/api.yml`) |
+| E2E tests       | Cypress                                            |
+| Scaffold        | JHipster 9.0.0                                     |
+
+---
+
+## Project layout
+
+```
+design/               UI prototypes (source of truth for the React frontend)
+  landing.html        Marketing landing page — open in browser to preview
+  index.html          Holder app + verifier interactive demo
+  tshepo-*.jsx        Shared icon/UI/card/holder/verifier/app/page components
+
+src/main/resources/
+  swagger/api.yml     OpenAPI 3.1 contract — authored before implementation (api-first)
+  config/liquibase/   Database migrations
+
+src/main/java/app/tshepo/
+  web/rest/           Controllers (implement generated OpenAPI interfaces)
+  service/            Core business logic
+  domain/             JPA entities
+  repository/         Spring Data repositories
+
+src/main/webapp/app/  React 19 SPA (matches design/ artefacts)
+tshepo-app.jdl        JDL used to generate the scaffold
+```
+
+---
+
+## Setup
+
+### Prerequisites
+
+| Tool     | Version                             |
+| -------- | ----------------------------------- |
+| Java     | 21                                  |
+| Node     | 22+                                 |
+| npm      | bundled with Node                   |
+| JHipster | 9.0.0                               |
+| Docker   | any recent version (for PostgreSQL) |
+
+### Install dependencies
 
 ```bash
-./npmw install
+npm install
 ```
 
-We use npm scripts and Webpack as our build system.
+### Run in development (H2 in-memory, fixture Investec data)
 
-Run the following commands in two separate terminals to create a blissful development experience where your browser
-auto-refreshes when files change on your hard drive.
+Open two terminals:
 
 ```bash
-./npmw run backend:start
-./npmw run start
+# Terminal 1 — Spring Boot
+./mvnw
+
+# Terminal 2 — React dev server (hot reload)
+npm start
 ```
 
-Npm is also used to manage CSS and JavaScript dependencies used in this application. You can upgrade dependencies by
-specifying a newer version in [package.json](package.json). You can also run `./npmw update` and `./npmw install` to manage dependencies.
-Add the `help` flag on any command to see how you can use it. For example, `./npmw help update`.
+App is available at <http://localhost:8080>.
 
-The `./npmw run` command will list all the scripts available to run for this project.
+The `fixtureinvestec` Spring profile is active by default in dev — no real Investec credentials needed.
 
-### PWA Support
-
-JHipster ships with PWA (Progressive Web App) support, and it's turned off by default. One of the main components of a PWA is a service worker.
-
-The service worker initialization code is commented out by default. To enable it, uncomment the following code in `src/main/webapp/index.html`:
-
-```html
-<script>
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./service-worker.js').then(function () {
-      console.log('Service Worker Registered');
-    });
-  }
-</script>
-```
-
-Note: [Workbox](https://developer.chrome.com/docs/workbox) powers JHipster's service worker. It dynamically generates the `service-worker.js` file.
-
-### Managing dependencies
-
-For example, to add [Leaflet](https://leafletjs.com/) library as a runtime dependency of your application, you would run the following command:
+### Run with a real Investec sandbox
 
 ```bash
-./npmw install --save --save-exact leaflet
+# Set credentials in environment (never in code/git)
+export INVESTEC_CLIENT_ID=...
+export INVESTEC_CLIENT_SECRET=...
+export INVESTEC_API_BASE=https://openapi.investec.com
+
+./mvnw -Dspring.profiles.active=dev,investec-live
 ```
 
-To benefit from TypeScript type definitions from [DefinitelyTyped](https://definitelytyped.org/) repository in development, you would run the following command:
-
-```bash
-./npmw install --save-dev --save-exact @types/leaflet
-```
-
-Then you would import the JS and CSS files specified in library's installation instructions so that [Webpack][] knows about them:
-Note: There are still a few other things remaining to do for Leaflet that we won't detail here.
-
-For further instructions on how to develop with JHipster, have a look at [Using JHipster in development](https://www.jhipster.tech/development/).
-
-## Building for production
-
-### Packaging as jar
-
-To build the final jar and optimize the tshepoVault application for production, run:
+### Production build
 
 ```bash
 ./mvnw -Pprod clean verify
-```
-
-This will concatenate and minify the client CSS and JavaScript files. It will also modify `index.html` so it references these new files.
-To ensure everything worked, run:
-
-```bash
 java -jar target/*.jar
 ```
 
-Then navigate to [http://localhost:8080](http://localhost:8080) in your browser.
-
-Refer to [Using JHipster in production][] for more details.
-
-### Packaging as war
-
-To package your application as a war in order to deploy it to an application server, run:
+### Docker (PostgreSQL)
 
 ```bash
-./mvnw -Pprod,war clean verify
+docker compose -f src/main/docker/postgresql.yml up -d
+./mvnw -Pprod
 ```
 
-### JHipster Control Center
+---
 
-JHipster Control Center can help you manage and control your application(s). You can start a local control center server (accessible on http://localhost:7419) with:
+## API contract
 
-```bash
-docker compose -f src/main/docker/jhipster-control-center.yml up
-```
+The full OpenAPI 3.1 spec is at `src/main/resources/swagger/api.yml`.
+
+Key custom endpoints:
+
+| Method | Path                            | Auth                  | Description                                |
+| ------ | ------------------------------- | --------------------- | ------------------------------------------ |
+| `POST` | `/api/bank/connect`             | JWT                   | Exchange Investec OAuth code               |
+| `GET`  | `/api/bank/status`              | JWT                   | Connection status                          |
+| `GET`  | `/api/bank/claims`              | JWT                   | Available claims with met/not-met          |
+| `POST` | `/api/credentials/issue`        | JWT                   | Issue a new SD-JWT VC                      |
+| `POST` | `/api/credentials/{id}/present` | JWT                   | Generate selective-disclosure presentation |
+| `POST` | `/api/verify`                   | public (rate-limited) | Verify a presentation                      |
+| `POST` | `/v1/verify`                    | API key (metered)     | Verify at scale                            |
+| `GET`  | `/.well-known/did.json`         | public                | DID document for did:web                   |
+| `GET`  | `/.well-known/jwks.json`        | public                | JWKS for signature verification            |
+
+---
 
 ## Testing
 
-### Spring Boot tests
-
-To launch your application's tests, run:
-
 ```bash
+# Backend unit + integration tests
 ./mvnw verify
+
+# Frontend unit tests
+npm test
+
+# E2E (Cypress) — requires running app
+npm run app:start        # terminal 1
+npm run e2e              # terminal 2
 ```
 
-### Client tests
+---
 
-Unit tests are run by Jest. They're located near components and can be run with:
+## Privacy by design — rules enforced in code
 
-```bash
-./npmw test
-```
+- Raw transactions are **never persisted** or logged — only boolean predicate results.
+- Credentials certify thresholds ("≥ R30,000"), never exact figures.
+- Presentations hide non-selected claims cryptographically; verifiers cannot infer hidden claim count.
+- Bank connection stores only metadata (account mask, connection timestamp) — no tokens at rest.
 
-#### E2E tests
+---
 
-UI end-to-end tests are powered by [Cypress][]. They're located in [src/test/javascript/cypress/](src/test/javascript/cypress/)
-and can be run by starting Spring Boot in one terminal (`./npmw run app:start`) and running the tests (`./npmw run e2e`) in a second one.
+## Phases
 
-Before running Cypress tests, it's possible to specify user credentials by overriding the `CYPRESS_E2E_USERNAME` and `CYPRESS_E2E_PASSWORD` environment variables.
+| #   | Phase                             | Status  |
+| --- | --------------------------------- | ------- |
+| 0   | Prerequisites & JHipster scaffold | ✅ Done |
+| 1   | Domain model JDL                  | ✅ Done |
+| 2   | OpenAPI contract review           | ✅ Done |
+| 3   | Investec adapter (fixture + live) | ✅ Done |
+| 4   | Core services                     | ✅ Done |
+| 5   | React frontend                    | ✅ Done |
+| 6   | Submission polish                 | ✅ Done |
 
-```bash
-export CYPRESS_E2E_USERNAME="<your-username>"
-export CYPRESS_E2E_PASSWORD="<your-password>"
-```
+---
 
-See Cypress documentation for setting OS [environment variables](https://docs.cypress.io/app/references/environment-variables#Setting) to learn more.
+## License
 
-#### Lighthouse audits
-
-You can execute automated [Lighthouse audits](https://developer.chrome.com/docs/lighthouse/overview) with [cypress-audit](https://github.com/mfrachet/cypress-audit) by running `./npmw run e2e:cypress:audits`.
-
-You should only run the audits when your application is packaged with the production profile.
-
-The Lighthouse report is created in `target/cypress/lhreport.html`.
-
-## Others
-
-### Code quality using Sonar
-
-Sonar is used to analyse code quality. You can start a local Sonar server (accessible on http://localhost:9001) with:
-
-```bash
-docker compose -f src/main/docker/sonar.yml up -d
-```
-
-Note: we have turned off forced authentication redirect for UI in [src/main/docker/sonar.yml](src/main/docker/sonar.yml) for out of the box experience while trying out SonarQube, for real use cases turn it back on.
-
-You can run a Sonar analysis with using the [sonar-scanner](https://docs.sonarqube.org/display/SCAN/Analyzing+with+SonarQube+Scanner) or by using the maven plugin.
-
-Then, run a Sonar analysis:
-
-```bash
-./mvnw -Pprod clean verify sonar:sonar -Dsonar.login=admin -Dsonar.password=admin
-```
-
-If you need to re-run the Sonar phase, please be sure to specify at least the `initialize` phase since Sonar properties are loaded from the sonar-project.properties file.
-
-```bash
-./mvnw initialize sonar:sonar -Dsonar.login=admin -Dsonar.password=admin
-```
-
-Additionally, Instead of passing `sonar.password` and `sonar.login` as CLI arguments, these parameters can be configured from [sonar-project.properties](sonar-project.properties) as shown below:
-
-```bash
-sonar.login=admin
-sonar.password=admin
-```
-
-For more information, refer to the [Code quality page][].
-
-### Docker Compose support
-
-JHipster generates a number of Docker Compose configuration files in the [src/main/docker/](src/main/docker/) folder to launch required third party services.
-
-For example, to start required services in Docker containers, run:
-
-```bash
-docker compose -f src/main/docker/services.yml up -d
-```
-
-To stop and remove the containers, run:
-
-```bash
-docker compose -f src/main/docker/services.yml down
-```
-
-[Spring Docker Compose Integration](https://docs.spring.io/spring-boot/reference/features/dev-services.html) is enabled by default. It's possible to disable it in `application.yml`:
-
-```yaml
-spring:
-  ...
-  docker:
-    compose:
-      enabled: false
-```
-
-You can also fully dockerize your application and all the services that it depends on.
-To achieve this, first build a Docker image of your app by running:
-
-```bash
-npm run java:docker
-```
-
-Or build an arm64 Docker image when using an arm64 processor OS, i.e., Apple Silicon chips (M\*), running:
-
-```bash
-npm run java:docker:arm64
-```
-
-Then run:
-
-```bash
-docker compose -f src/main/docker/app.yml up -d
-```
-
-For more information refer to [Docker and Docker-Compose](https://www.jhipster.tech/documentation-archive/v9.0.0/docker-compose/), this page also contains information on the Docker Compose sub-generator (`jhipster docker-compose`), which is able to generate Docker configurations for one or several JHipster applications.
-
-## Continuous Integration (optional)
-
-To configure CI for your project, run the ci-cd sub-generator (`jhipster ci-cd`), this will let you generate configuration files for a number of Continuous Integration systems. Consult the [Setting up Continuous Integration](https://www.jhipster.tech/documentation-archive/v9.0.0/setting-up-ci/) page for more information.
-
-## References
-
-- [JHipster Homepage and latest documentation](https://www.jhipster.tech/)
-- [JHipster 9.0.0 archive](https://www.jhipster.tech/documentation-archive/v9.0.0)
-- [Using JHipster in development](https://www.jhipster.tech/documentation-archive/v9.0.0/development/)
-- [Using Docker and Docker-Compose](https://www.jhipster.tech/documentation-archive/v9.0.0/docker-compose)
-- [Using JHipster in production](https://www.jhipster.tech/documentation-archive/v9.0.0/production/)
-- [Running tests page](https://www.jhipster.tech/documentation-archive/v9.0.0/running-tests/)
-- [Code quality page](https://www.jhipster.tech/documentation-archive/v9.0.0/code-quality/)
-- [Setting up Continuous Integration](https://www.jhipster.tech/documentation-archive/v9.0.0/setting-up-ci/)
-- [Node.js](https://nodejs.org/)
-- [NPM](https://www.npmjs.com/)
-- [Webpack](https://webpack.js.org/)
-- [BrowserSync](https://www.browsersync.io/)
-- [Jest](https://jestjs.io)
-- [Leaflet](https://leafletjs.com/)
-- [DefinitelyTyped](https://definitelytyped.org/)
-- [Cypress](https://www.cypress.io/)
+MIT — see [LICENSE](LICENSE).

@@ -13,6 +13,7 @@ import PrivateRoute from 'app/shared/auth/private-route';
 import ErrorBoundaryRoutes from 'app/shared/error/error-boundary-routes';
 import PageNotFound from 'app/shared/error/page-not-found';
 import { Authority } from 'app/shared/jhipster/constants';
+import VerifierPage from 'app/tshepo/VerifierPage';
 
 const loading = <div>loading ...</div>;
 
@@ -25,6 +26,7 @@ const AppRoutes = () => {
       <Suspense fallback={loading}>
         <ErrorBoundaryRoutes>
           <Route index element={<Home />} />
+          <Route path="verify" element={<VerifierPage />} />
           <Route path="login" element={<Login />} />
           <Route path="logout" element={<Logout />} />
           <Route path="account">

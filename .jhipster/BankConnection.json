@@ -1,0 +1,44 @@
+{
+  "annotations": {
+    "changelogDate": "20260529175236"
+  },
+  "applications": ["*"],
+  "documentation": "OAuth token metadata for one holder's Investec connection.\\nAccess/refresh tokens are stored encrypted in application config —\\nNEVER as plain-text fields here. This record holds only metadata.",
+  "dto": "mapstruct",
+  "fields": [
+    {
+      "fieldName": "holderLogin",
+      "fieldType": "String",
+      "fieldValidateRules": ["required", "maxlength", "unique"],
+      "fieldValidateRulesMaxlength": "50"
+    },
+    {
+      "fieldName": "connectedAt",
+      "fieldType": "Instant",
+      "fieldValidateRules": ["required"]
+    },
+    {
+      "fieldName": "status",
+      "fieldType": "BankConnectionStatus",
+      "fieldValidateRules": ["required"],
+      "fieldValues": "CONNECTED,DISCONNECTED,ERROR"
+    },
+    {
+      "documentation": "Masked account number shown in the UI, e.g. \"•••• 4821\".",
+      "fieldName": "maskedAccount",
+      "fieldType": "String",
+      "fieldValidateRules": ["maxlength"],
+      "fieldValidateRulesMaxlength": "20"
+    },
+    {
+      "fieldName": "accountType",
+      "fieldType": "String",
+      "fieldValidateRules": ["maxlength"],
+      "fieldValidateRulesMaxlength": "80"
+    }
+  ],
+  "name": "BankConnection",
+  "relationships": [],
+  "searchEngine": "no",
+  "service": "serviceClass"
+}

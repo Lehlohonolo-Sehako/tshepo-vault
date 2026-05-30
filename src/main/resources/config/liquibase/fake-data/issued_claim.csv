@@ -1,0 +1,11 @@
+id;claim_type;operator;threshold;currency;period_months;met;credential_id
+1;BALANCE;EQ;14099.57;sig;33;false;1
+2;NO_OVERDRAFT;EQ;6094.79;wel;9;true;2
+3;BALANCE;EQ;16233.57;tro;41;true;3
+4;BALANCE;LTE;20111.79;opp;34;false;4
+5;NO_OVERDRAFT;EQ;8809.06;yes;44;true;5
+6;INFLOW;LTE;1206.75;fla;35;true;6
+7;TENURE;LTE;29754.9;reb;43;true;7
+8;TENURE;GTE;24191.64;tha;24;false;8
+9;TENURE;EQ;6953.13;swe;6;false;9
+10;TENURE;EQ;20753.78;yip;53;true;10

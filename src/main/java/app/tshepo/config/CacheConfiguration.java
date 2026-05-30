@@ -44,6 +44,12 @@ public class CacheConfiguration {
             createCache(cm, app.tshepo.domain.User.class.getName());
             createCache(cm, app.tshepo.domain.Authority.class.getName());
             createCache(cm, app.tshepo.domain.User.class.getName() + ".authorities");
+            createCache(cm, app.tshepo.domain.Credential.class.getName());
+            createCache(cm, app.tshepo.domain.Credential.class.getName() + ".claimses");
+            createCache(cm, app.tshepo.domain.IssuedClaim.class.getName());
+            createCache(cm, app.tshepo.domain.VerifierApiKey.class.getName());
+            createCache(cm, app.tshepo.domain.VerificationEvent.class.getName());
+            createCache(cm, app.tshepo.domain.BankConnection.class.getName());
             // jhipster-needle-ehcache-add-entry
         };
     }

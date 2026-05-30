@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- Public UUID for external credential references (API path param, jti claim) -->
+    <changeSet id="20260529200001-1" author="tshepo">
+        <addColumn tableName="credential">
+            <column name="credential_uuid" type="${uuidType}"/>
+        </addColumn>
+        <addUniqueConstraint tableName="credential" columnNames="credential_uuid"
+                             constraintName="ux_credential__credential_uuid"/>
+    </changeSet>
+
+    <!-- Ephemeral bearer token for subsequent InvestecClient calls after connect.
+         In production this should be encrypted at the application layer before storage. -->
+    <changeSet id="20260529200001-2" author="tshepo">
+        <addColumn tableName="bank_connection">
+            <column name="access_token" type="${clobType}"/>
+        </addColumn>
+    </changeSet>
+
+    <!-- Cache of pre-computed claim predicates (JSON) to avoid re-fetching bank data -->
+    <changeSet id="20260529200001-3" author="tshepo">
+        <addColumn tableName="bank_connection">
+            <column name="pre_computed_claims_json" type="${clobType}"/>
+        </addColumn>
+    </changeSet>
+
+    <!-- Public UUID for API key external references -->
+    <changeSet id="20260529200001-6" author="tshepo">
+        <addColumn tableName="verifier_api_key">
+            <column name="key_uuid" type="${uuidType}"/>
+        </addColumn>
+        <addUniqueConstraint tableName="verifier_api_key" columnNames="key_uuid"
+                             constraintName="ux_verifier_api_key__key_uuid"/>
+    </changeSet>
+
+    <!-- Back-fill UUIDs for any existing rows (dev faker data) -->
+    <changeSet id="20260529200001-4" author="tshepo" dbms="h2">
+        <sql>UPDATE credential SET credential_uuid = RANDOM_UUID() WHERE credential_uuid IS NULL</sql>
+        <sql>UPDATE verifier_api_key SET key_uuid = RANDOM_UUID() WHERE key_uuid IS NULL</sql>
+    </changeSet>
+    <changeSet id="20260529200001-5" author="tshepo" dbms="postgresql">
+        <sql>UPDATE credential SET credential_uuid = gen_random_uuid() WHERE credential_uuid IS NULL</sql>
+        <sql>UPDATE verifier_api_key SET key_uuid = gen_random_uuid() WHERE key_uuid IS NULL</sql>
+    </changeSet>
+
+</databaseChangeLog>

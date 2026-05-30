@@ -1,0 +1,64 @@
+{
+  "annotations": {
+    "changelogDate": "20260529175233"
+  },
+  "applications": ["*"],
+  "documentation": "One predicate fact certified inside a Credential.\\nPRIVACY: `met` is the only boolean stored. The raw evidence\\n(e.g. \"R42,300\") is computed in memory, shown to the holder\\nduring issuance, and immediately discarded — it never persists here.",
+  "dto": "mapstruct",
+  "fields": [
+    {
+      "fieldName": "claimType",
+      "fieldType": "ClaimType",
+      "fieldValidateRules": ["required"],
+      "fieldValues": "INFLOW,BALANCE,TENURE,SALARY_CONTINUITY,NO_OVERDRAFT"
+    },
+    {
+      "fieldName": "operator",
+      "fieldType": "ClaimOperator",
+      "fieldTypeDocumentation": "GTE = ≥  |  LTE = ≤  |  EQ = =",
+      "fieldValidateRules": ["required"],
+      "fieldValues": "GTE,LTE,EQ"
+    },
+    {
+      "documentation": "Threshold value (Rand for monetary types, months for TENURE).",
+      "fieldName": "threshold",
+      "fieldType": "BigDecimal",
+      "fieldValidateRules": ["required", "min"],
+      "fieldValidateRulesMin": "0"
+    },
+    {
+      "fieldName": "currency",
+      "fieldType": "String",
+      "fieldValidateRules": ["maxlength"],
+      "fieldValidateRulesMaxlength": "3"
+    },
+    {
+      "documentation": "Look-back window used when computing this claim.",
+      "fieldName": "periodMonths",
+      "fieldType": "Integer",
+      "fieldValidateRules": ["min", "max"],
+      "fieldValidateRulesMax": "60",
+      "fieldValidateRulesMin": "1"
+    },
+    {
+      "documentation": "True if the holder satisfied this threshold at issuance time.",
+      "fieldName": "met",
+      "fieldType": "Boolean",
+      "fieldValidateRules": ["required"]
+    }
+  ],
+  "name": "IssuedClaim",
+  "relationships": [
+    {
+      "otherEntityField": "title",
+      "otherEntityName": "credential",
+      "otherEntityRelationshipName": "claims",
+      "relationshipName": "credential",
+      "relationshipSide": "right",
+      "relationshipType": "many-to-one",
+      "relationshipValidateRules": "required"
+    }
+  ],
+  "searchEngine": "no",
+  "service": "serviceClass"
+}

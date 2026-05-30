@@ -108,3 +108,16 @@ jhipster:
 # ===================================================================
 
 # application:
+
+# Investec Programmable Banking adapter (read-only)
+# Set real values via environment variables for investec-live profile.
+# The fixtureinvestec profile (default in dev) ignores these.
+tshepo:
+  issuer-did: did:web:localhost
+  credential-validity-days: 180
+
+investec:
+  client-id: ${INVESTEC_CLIENT_ID:fixture-client-id}
+  client-secret: ${INVESTEC_CLIENT_SECRET:fixture-client-secret}
+  api-base: ${INVESTEC_API_BASE:https://openapi.investec.com}
+  token-uri: ${INVESTEC_TOKEN_URI:https://identity.investec.com/am/oauth2/access_token}

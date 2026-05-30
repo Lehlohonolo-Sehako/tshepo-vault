@@ -1,0 +1,187 @@
+/*
+ * entities.jdl — Phase 1: domain model.
+ *
+ * Run:  jhipster jdl entities.jdl
+ *
+ * Privacy invariant: NO raw transaction data in any entity.
+ * IssuedClaim stores only the boolean predicate result (met) plus the
+ * threshold descriptor — never the actual account figure.
+ */
+
+// ─────────────────────────────────────────────
+// Enumerations
+// ─────────────────────────────────────────────
+
+enum CredentialStatus {
+  ACTIVE,
+  REVOKED,
+  EXPIRED
+}
+
+enum ClaimType {
+  INFLOW,           // average monthly net credits
+  BALANCE,          // average closing balance
+  TENURE,           // account open duration
+  SALARY_CONTINUITY, // recurring salary credits from same payer
+  NO_OVERDRAFT      // no negative balance in period
+}
+
+/** GTE = ≥  |  LTE = ≤  |  EQ = = */
+enum ClaimOperator {
+  GTE,
+  LTE,
+  EQ
+}
+
+enum BankConnectionStatus {
+  CONNECTED,
+  DISCONNECTED,
+  ERROR
+}
+
+enum VerificationResult {
+  VALID,
+  INVALID_SIGNATURE,
+  EXPIRED,
+  REVOKED,
+  MALFORMED,
+  UNTRUSTED_ISSUER
+}
+
+// ─────────────────────────────────────────────
+// Entities
+// ─────────────────────────────────────────────
+
+/**
+ * A signed SD-JWT Verifiable Credential held by one Investec customer.
+ * sdJwt stores the full compact serialisation; it is never sent back to
+ * the client in list views — only on explicit single-credential fetch.
+ */
+entity Credential {
+  holderLogin     String          required maxlength(50)
+  title           String          required maxlength(120)
+  purpose         String          maxlength(200)
+  status          CredentialStatus required
+  issuedAt        Instant         required
+  expiresAt       Instant         required
+  issuerDid       String          required maxlength(200)
+  sdJwt           TextBlob        required
+  /** Comma-separated short claim labels for list-view display only. */
+  claimsSummary   String          maxlength(500)
+  vcRef           String          maxlength(200)
+}
+
+/**
+ * One predicate fact certified inside a Credential.
+ * PRIVACY: `met` is the only boolean stored. The raw evidence
+ * (e.g. "R42,300") is computed in memory, shown to the holder
+ * during issuance, and immediately discarded — it never persists here.
+ */
+entity IssuedClaim {
+  claimType       ClaimType       required
+  operator        ClaimOperator   required
+  /** Threshold value (Rand for monetary types, months for TENURE). */
+  threshold       BigDecimal      required min(0)
+  currency        String          maxlength(3)
+  /** Look-back window used when computing this claim. */
+  periodMonths    Integer         min(1) max(60)
+  /** True if the holder satisfied this threshold at issuance time. */
+  met             Boolean         required
+}
+
+/**
+ * API key issued to a verifier for the metered POST /v1/verify endpoint.
+ * keyHash is a bcrypt hash of the raw key. The raw key is returned once
+ * on creation and never stored in plain text.
+ */
+entity VerifierApiKey {
+  ownerLogin      String          required maxlength(50)
+  label           String          required maxlength(80)
+  keyHash         String          required maxlength(100) unique
+  active          Boolean         required
+  callCount       Long            min(0)
+  createdAt       Instant         required
+}
+
+/**
+ * Append-only audit log of every verification attempt.
+ * apiKey is null when the check came from the public browser page.
+ * disclosedClaims records which ClaimType values the holder revealed —
+ * stored as a JSON array string for portability.
+ */
+entity VerificationEvent {
+  verifiedAt      Instant         required
+  result          VerificationResult required
+  /** JSON array of ClaimType strings that were disclosed. */
+  disclosedClaims TextBlob
+  /** URN reference to the credential that was presented (for audit). */
+  credentialRef   String          maxlength(200)
+}
+
+/**
+ * OAuth token metadata for one holder's Investec connection.
+ * Access/refresh tokens are stored encrypted in application config —
+ * NEVER as plain-text fields here. This record holds only metadata.
+ */
+entity BankConnection {
+  holderLogin     String              required maxlength(50) unique
+  connectedAt     Instant             required
+  status          BankConnectionStatus required
+  /** Masked account number shown in the UI, e.g. "•••• 4821". */
+  maskedAccount   String              maxlength(20)
+  accountType     String              maxlength(80)
+}
+
+// ─────────────────────────────────────────────
+// Relationships
+// ─────────────────────────────────────────────
+
+/** Each Credential contains one or more independently-disclosable claims. */
+relationship OneToMany {
+  Credential{claims} to IssuedClaim{credential(title) required}
+}
+
+/**
+ * A VerificationEvent may (nullable) be associated with the API key
+ * that was used. Null means the public browser-based verify page was used.
+ */
+relationship ManyToOne {
+  VerificationEvent{apiKey(label)} to VerifierApiKey
+}
+
+// ─────────────────────────────────────────────
+// Service layer — business logic goes in service classes, not controllers
+// ─────────────────────────────────────────────
+
+service Credential,
+        IssuedClaim,
+        VerifierApiKey,
+        VerificationEvent,
+        BankConnection
+  with serviceClass
+
+// ─────────────────────────────────────────────
+// DTOs — MapStruct projections decouple the API from the domain model
+// ─────────────────────────────────────────────
+
+dto Credential,
+    IssuedClaim,
+    VerifierApiKey,
+    VerificationEvent,
+    BankConnection
+  with mapstruct
+
+// ─────────────────────────────────────────────
+// Pagination — only for entities with potentially large result sets
+// ─────────────────────────────────────────────
+
+pagination Credential        with pagination
+pagination VerificationEvent with pagination
+
+// ─────────────────────────────────────────────
+// Query filtering — allows ?status=ACTIVE, ?claimType=INFLOW, etc.
+// ─────────────────────────────────────────────
+
+filter Credential
+filter VerificationEvent
+filter VerifierApiKey

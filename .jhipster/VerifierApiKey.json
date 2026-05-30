@@ -1,0 +1,49 @@
+{
+  "annotations": {
+    "changelogDate": "20260529175234"
+  },
+  "applications": ["*"],
+  "documentation": "API key issued to a verifier for the metered POST /v1/verify endpoint.\\nkeyHash is a bcrypt hash of the raw key. The raw key is returned once\\non creation and never stored in plain text.",
+  "dto": "mapstruct",
+  "fields": [
+    {
+      "fieldName": "ownerLogin",
+      "fieldType": "String",
+      "fieldValidateRules": ["required", "maxlength"],
+      "fieldValidateRulesMaxlength": "50"
+    },
+    {
+      "fieldName": "label",
+      "fieldType": "String",
+      "fieldValidateRules": ["required", "maxlength"],
+      "fieldValidateRulesMaxlength": "80"
+    },
+    {
+      "fieldName": "keyHash",
+      "fieldType": "String",
+      "fieldValidateRules": ["required", "maxlength", "unique"],
+      "fieldValidateRulesMaxlength": "100"
+    },
+    {
+      "fieldName": "active",
+      "fieldType": "Boolean",
+      "fieldValidateRules": ["required"]
+    },
+    {
+      "fieldName": "callCount",
+      "fieldType": "Long",
+      "fieldValidateRules": ["min"],
+      "fieldValidateRulesMin": "0"
+    },
+    {
+      "fieldName": "createdAt",
+      "fieldType": "Instant",
+      "fieldValidateRules": ["required"]
+    }
+  ],
+  "jpaMetamodelFiltering": true,
+  "name": "VerifierApiKey",
+  "relationships": [],
+  "searchEngine": "no",
+  "service": "serviceClass"
+}

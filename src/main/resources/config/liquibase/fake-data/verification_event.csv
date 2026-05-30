@@ -1,0 +1,11 @@
+id;verified_at;result;disclosed_claims;credential_ref
+1;2026-05-28T22:28:06;EXPIRED;../fake-data/blob/hipster.txt;fold because archaeology
+2;2026-05-29T08:44:27;VALID;../fake-data/blob/hipster.txt;lest brr
+3;2026-05-29T12:57:31;REVOKED;../fake-data/blob/hipster.txt;splurge indeed
+4;2026-05-29T07:46:08;REVOKED;../fake-data/blob/hipster.txt;enrage afford within
+5;2026-05-29T04:11:52;INVALID_SIGNATURE;../fake-data/blob/hipster.txt;numeracy urban
+6;2026-05-29T15:30:11;REVOKED;../fake-data/blob/hipster.txt;scruple fooey
+7;2026-05-29T03:41:33;VALID;../fake-data/blob/hipster.txt;archive phooey outside
+8;2026-05-29T10:53:04;EXPIRED;../fake-data/blob/hipster.txt;phooey suckle
+9;2026-05-29T08:54:32;MALFORMED;../fake-data/blob/hipster.txt;of a clinch
+10;2026-05-28T22:20:45;INVALID_SIGNATURE;../fake-data/blob/hipster.txt;exotic unless

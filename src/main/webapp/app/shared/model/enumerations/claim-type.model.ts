@@ -1,0 +1,11 @@
+export enum ClaimType {
+  INFLOW = 'INFLOW',
+
+  BALANCE = 'BALANCE',
+
+  TENURE = 'TENURE',
+
+  SALARY_CONTINUITY = 'SALARY_CONTINUITY',
+
+  NO_OVERDRAFT = 'NO_OVERDRAFT',
+}
