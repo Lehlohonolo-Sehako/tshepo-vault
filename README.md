@@ -7,6 +7,10 @@ A holder proves **"average monthly inflow ≥ R30,000"** to a landlord or lender
 
 ---
 
+https://github.com/user-attachments/assets/aa69e73a-98b1-4e79-9841-0d8d8dbaa2b2
+
+---
+
 ## Table of contents
 
 1. [What it does](#what-it-does)
