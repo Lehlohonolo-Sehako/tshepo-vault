@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * Returns deterministic SA fixture data so the full flow works in dev without real Investec credentials.
- * Data matches the design prototype: Thabo Mokoena, account •••• 4821, PattersonGroup salary ~R42 300/month.
+ * Data matches the design prototype: Puseletso Lesenyane, account •••• 4821, PattersonGroup salary ~R42 300/month.
  */
 @Component
 @Profile("!investec-live")
@@ -31,7 +31,14 @@ public class FixtureInvestecClient implements InvestecClient {
     @Override
     public List<InvestecAccount> getAccounts(String bearerToken) {
         return List.of(
-            new InvestecAccount(FIXTURE_ACCOUNT_ID, "Thabo Mokoena", "10011234821", "Private Bank Account", true, LocalDate.of(2023, 1, 15))
+            new InvestecAccount(
+                FIXTURE_ACCOUNT_ID,
+                "Puseletso Lesenyane",
+                "10011234821",
+                "Private Bank Account",
+                true,
+                LocalDate.of(2023, 1, 15)
+            )
         );
     }
 

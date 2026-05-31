@@ -80,14 +80,7 @@ function Nav() {
           <a href="#verify">For verifiers</a>
         </nav>
         <div className="ts-lnav__actions">
-          <a href="/api/auth/investec/authorize" className="ts-btn ts-btn--ghost ts-btn--sm">
-            Sign in
-          </a>
-          <a
-            href="/api/auth/investec/authorize"
-            className="ts-btn ts-btn--dark ts-btn--sm"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-          >
+          <a href="/connect" className="ts-btn ts-btn--dark ts-btn--sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             Connect with Investec <ArrowRight size={14} />
           </a>
         </div>
@@ -281,7 +274,7 @@ function Hero() {
           </p>
           <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12, marginTop: 32 }}>
             <a
-              href="/api/auth/investec/authorize"
+              href="/connect"
               className="ts-btn ts-btn--primary ts-btn--lg"
               style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}
             >
@@ -790,11 +783,7 @@ function VerifierSection() {
             >
               Open the verifier <ArrowRight size={16} />
             </a>
-            <a
-              href="/api/auth/investec/authorize"
-              className="ts-btn ts-btn--ghost ts-btn--md"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}
-            >
+            <a href="/connect" className="ts-btn ts-btn--ghost ts-btn--md" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
               <Key size={16} /> Get API access
             </a>
           </div>
@@ -943,14 +932,14 @@ function CTA() {
           </h2>
           <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: 12, marginTop: 32 }}>
             <a
-              href="/api/auth/investec/authorize"
+              href="/connect"
               className="ts-btn ts-btn--primary ts-btn--lg"
               style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}
             >
               Connect with Investec <ArrowRight size={17} />
             </a>
             <a
-              href="/api/auth/investec/authorize"
+              href="/connect"
               className="ts-btn ts-btn--ghost ts-btn--lg"
               style={{ color: '#fff', borderColor: 'rgba(255,255,255,0.2)', background: 'transparent' }}
             >
@@ -1008,7 +997,7 @@ function Footer() {
             <ul style={{ marginTop: 14, listStyle: 'none', padding: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
               {col.links.map(l => (
                 <li key={l}>
-                  <a href="/api/auth/investec/authorize" style={{ fontSize: 13.5, color: 'var(--ts-muted)', textDecoration: 'none' }}>
+                  <a href="/connect" style={{ fontSize: 13.5, color: 'var(--ts-muted)', textDecoration: 'none' }}>
                     {l}
                   </a>
                 </li>

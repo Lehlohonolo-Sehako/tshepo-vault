@@ -2,15 +2,20 @@ package app.tshepo.integration.investec;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
+import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Base64;
 import java.util.List;
+import java.util.List;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -21,46 +26,60 @@ import org.springframework.web.client.RestClient;
 public class LiveInvestecClient implements InvestecClient {
 
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ISO_LOCAL_DATE;
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final RestClient restClient;
+    private final RestClient tokenClient;
     private final InvestecProperties props;
 
     public LiveInvestecClient(InvestecProperties props) {
         this.props = props;
-        this.restClient = RestClient.builder().baseUrl(props.getApiBase()).build();
+        // API calls: force HTTP/1.1 (local sandbox simulator does not support HTTP/2)
+        JdkClientHttpRequestFactory http11 = new JdkClientHttpRequestFactory(
+            HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build()
+        );
+        this.restClient = RestClient.builder().baseUrl(props.getApiBase()).requestFactory(http11).build();
+
+        // Token endpoint: read raw string to bypass content-type negotiation.
+        // Some sandbox implementations return application/octet-stream instead of
+        // application/json, which confuses Spring's default message converters.
+        SimpleClientHttpRequestFactory simple = new SimpleClientHttpRequestFactory();
+        simple.setConnectTimeout(10000);
+        simple.setReadTimeout(15000);
+        this.tokenClient = RestClient.builder().baseUrl(props.getTokenUri()).requestFactory(simple).build();
     }
 
     @Override
     public InvestecTokenPair exchangeAuthCode(String authCode, String redirectUri) {
-        MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
-        form.add("grant_type", "authorization_code");
-        form.add("code", authCode);
-        form.add("redirect_uri", redirectUri);
-        TokenResponse resp = restClient
-            .post()
-            .uri(props.getTokenUri())
-            .header(HttpHeaders.AUTHORIZATION, basicAuth())
-            .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-            .body(form)
-            .retrieve()
-            .body(TokenResponse.class);
-        return new InvestecTokenPair(resp.accessToken(), resp.refreshToken(), resp.expiresIn());
+        return fetchClientCredentialsToken();
     }
 
     @Override
     public InvestecTokenPair refreshAccessToken(String refreshToken) {
+        return fetchClientCredentialsToken();
+    }
+
+    private InvestecTokenPair fetchClientCredentialsToken() {
         MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
-        form.add("grant_type", "refresh_token");
-        form.add("refresh_token", refreshToken);
-        TokenResponse resp = restClient
+        form.add("grant_type", "client_credentials");
+        form.add("scope", "accounts");
+        // Read as byte[] — ByteArrayHttpMessageConverter supports */* so it works
+        // regardless of whether the server returns application/json or application/octet-stream.
+        byte[] bytes = tokenClient
             .post()
-            .uri(props.getTokenUri())
+            .uri("")
             .header(HttpHeaders.AUTHORIZATION, basicAuth())
+            .header("x-api-key", props.getApiKey())
             .contentType(MediaType.APPLICATION_FORM_URLENCODED)
             .body(form)
             .retrieve()
-            .body(TokenResponse.class);
-        return new InvestecTokenPair(resp.accessToken(), resp.refreshToken(), resp.expiresIn());
+            .body(byte[].class);
+        try {
+            TokenResponse resp = MAPPER.readValue(bytes, TokenResponse.class);
+            return new InvestecTokenPair(resp.accessToken(), resp.refreshToken(), resp.expiresIn());
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to parse token response: " + new String(bytes, StandardCharsets.UTF_8), e);
+        }
     }
 
     @Override
@@ -69,6 +88,7 @@ public class LiveInvestecClient implements InvestecClient {
             .get()
             .uri("/za/pb/v1/accounts")
             .header(HttpHeaders.AUTHORIZATION, "Bearer " + bearerToken)
+            .header("x-api-key", props.getApiKey())
             .retrieve()
             .body(AccountsEnvelope.class);
         return env
@@ -81,8 +101,8 @@ public class LiveInvestecClient implements InvestecClient {
                     a.accountName(),
                     a.accountNumber(),
                     a.productName(),
-                    a.kycCompliant(),
-                    null // Investec accounts API does not surface open date; tenure computed from transactions
+                    Boolean.TRUE.equals(a.kycCompliant()),
+                    null
                 )
             )
             .toList();
@@ -94,6 +114,7 @@ public class LiveInvestecClient implements InvestecClient {
             .get()
             .uri("/za/pb/v1/accounts/{id}/balance", accountId)
             .header(HttpHeaders.AUTHORIZATION, "Bearer " + bearerToken)
+            .header("x-api-key", props.getApiKey())
             .retrieve()
             .body(BalanceEnvelope.class);
         BalanceData d = env.data();
@@ -111,6 +132,7 @@ public class LiveInvestecClient implements InvestecClient {
                 toDate.format(DATE_FMT)
             )
             .header(HttpHeaders.AUTHORIZATION, "Bearer " + bearerToken)
+            .header("x-api-key", props.getApiKey())
             .retrieve()
             .body(TransactionsEnvelope.class);
         return env
@@ -137,7 +159,7 @@ public class LiveInvestecClient implements InvestecClient {
         return "Basic " + Base64.getEncoder().encodeToString(creds.getBytes(StandardCharsets.UTF_8));
     }
 
-    // --- JSON mapping records (package-private, used only here) ---
+    // --- JSON mapping records ---
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     private record TokenResponse(
@@ -153,7 +175,7 @@ public class LiveInvestecClient implements InvestecClient {
     private record AccountsData(List<AccountJson> accounts) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    private record AccountJson(String accountId, String accountName, String accountNumber, String productName, boolean kycCompliant) {}
+    private record AccountJson(String accountId, String accountName, String accountNumber, String productName, Boolean kycCompliant) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     private record BalanceEnvelope(BalanceData data) {}

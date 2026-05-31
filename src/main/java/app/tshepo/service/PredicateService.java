@@ -14,7 +14,10 @@ import java.time.YearMonth;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClientException;
 
 /**
  * Computes claim predicates from live Investec data entirely in memory.
@@ -22,6 +25,8 @@ import org.springframework.stereotype.Service;
  */
 @Service
 public class PredicateService {
+
+    private static final Logger LOG = LoggerFactory.getLogger(PredicateService.class);
 
     private final InvestecClient investecClient;
 
@@ -49,9 +54,27 @@ public class PredicateService {
         LocalDate toDate = LocalDate.now();
         LocalDate fromDate = toDate.minusMonths(maxPeriod);
 
-        List<InvestecTransaction> txns = investecClient.getTransactions(bearerToken, accountId, fromDate, toDate);
-        InvestecBalance balance = investecClient.getBalance(bearerToken, accountId);
-        List<InvestecAccount> accounts = investecClient.getAccounts(bearerToken);
+        List<InvestecTransaction> txns;
+        InvestecBalance balance;
+        List<InvestecAccount> accounts;
+        try {
+            txns = investecClient.getTransactions(bearerToken, accountId, fromDate, toDate);
+        } catch (RestClientException e) {
+            LOG.warn("Could not fetch transactions for account {}: {}", accountId, e.getMessage());
+            txns = List.of();
+        }
+        try {
+            balance = investecClient.getBalance(bearerToken, accountId);
+        } catch (RestClientException e) {
+            LOG.warn("Could not fetch balance for account {}: {}", accountId, e.getMessage());
+            balance = null;
+        }
+        try {
+            accounts = investecClient.getAccounts(bearerToken);
+        } catch (RestClientException e) {
+            LOG.warn("Could not fetch accounts: {}", e.getMessage());
+            accounts = List.of();
+        }
         InvestecAccount account = accounts
             .stream()
             .filter(a -> a.accountId().equals(accountId))

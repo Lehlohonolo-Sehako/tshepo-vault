@@ -1,108 +1,136 @@
-# Tshepo — Knowledge file
-
-## What it does
-
-Tshepo ("trust and hope" in Sesotho/Setswana) issues bank-attested Verifiable Credentials to
-Investec account holders. A holder can prove "my average monthly inflow is at least R30,000" to
-a landlord or lender without revealing a single transaction. The verifier learns only the facts
-the holder deliberately chose to disclose.
-
-### The four-step flow
-
-1. **Connect** — holder authorises read-only Investec OAuth2 access once.
-2. **Issue** — backend fetches up to 12 months of transactions, evaluates claim predicates
-   entirely in memory (avg inflow, current balance, account tenure, salary continuity,
-   overdraft-free record), signs an SD-JWT Verifiable Credential, and persists only the
-   boolean results. Raw transaction data is discarded immediately.
-3. **Present** — holder chooses which claims to reveal; the backend strips the disclosures
-   for hidden claims and returns a selective-disclosure token + QR code. The verifier
-   cannot tell hidden claims exist.
-4. **Verify** — any verifier pastes the token on the public `/verify` page or calls the
-   metered `POST /v1/verify` REST endpoint. They receive a clear valid/invalid result
-   with only the disclosed claims.
+project: Tshepo
+tagline: Bank-attested proof-of-funds Verifiable Credentials — powered by Investec Programmable Banking
+author: Lehlohonolo Sehako
+repo: https://github.com/Lehlohonolo-Sehako/tshepo-vault
 
 ---
 
-## How Investec Programmable Banking is used
+PROBLEM
 
-| API | Purpose |
-|-----|---------|
-| OAuth2 authorisation endpoint | Read-only consent flow for the holder |
-| `GET /za/pb/v1/accounts` | Discover the holder's accounts |
-| `GET /za/pb/v1/accounts/{id}/balance` | Evaluate current-balance claim |
-| `GET /za/pb/v1/accounts/{id}/transactions` | Evaluate inflow, tenure, salary, overdraft claims |
+Rental agents, lenders, and visa officers routinely ask for 3 months of bank statements to
+prove financial standing. This forces applicants to hand over their entire financial history —
+every transaction, every merchant, every salary date — when the verifier only needs one fact:
+"Does this person earn enough?"
 
-**Privacy rule**: the Investec API is called once per credential-issuance request. After
-`PredicateService` reduces raw transactions to boolean thresholds, the `List<Transaction>`
-goes out of scope and is garbage-collected. No transaction data reaches the database, the
-logs, or the response body — ever.
-
-The adapter pattern (`InvestecClient` interface) means a `FixtureInvestecClient` (default dev
-profile) returns deterministic SA fixture data, so the entire flow is demonstrable without real
-Investec credentials.
+The over-disclosure is a privacy violation, a fraud vector, and an operational burden.
 
 ---
 
-## Credential format
+SOLUTION
 
-SD-JWT VC (IETF draft-ietf-oauth-selective-disclosure-jwt) signed with the issuer's EC P-256 key.
+Tshepo connects to an Investec account once (read-only OAuth2), computes boolean predicates
+entirely in memory, and issues a cryptographically-signed Verifiable Credential (SD-JWT VC).
 
-- Issuer identity: `did:web` — JWKS served at `/.well-known/jwks.json`.
-- Each claim is a separate disclosure: `BASE64URL(["<salt>","<claim_name>",<claim_value>])`.
-- JWT payload contains `_sd` (array of SHA-256 hashes of all disclosures) and never the raw values.
-- Presentation = issuer JWT + only the chosen disclosures + trailing `~`.
+The holder then presents only the claims the verifier needs — nothing else is disclosed, and
+the claims not selected cannot be inferred. The verifier gets a machine-verifiable:
 
----
+  "Yes, this person's average monthly inflow exceeded R30,000 for the past 6 months."
 
-## Privacy-by-design properties
-
-| Property | Enforcement |
-|----------|-------------|
-| No raw transactions at rest | `PredicateService` processes in memory; no transaction entity exists |
-| Threshold-only credentials | Claims certify "≥ R30,000", never exact figures |
-| Selective disclosure | Unrevealed disclosures are stripped; verifier cannot infer their count |
-| Read-only bank access | Investec OAuth2 scope is `accounts` only |
+No statements. No transactions. No privacy breach.
 
 ---
 
-## Running locally (no real Investec credentials needed)
+HOW INVESTEC PROGRAMMABLE BANKING IS USED
 
-```bash
-npm install
-./mvnw          # Spring Boot on :8080 with H2 + fixture Investec data
-npm start       # React dev server with HMR
-```
+1. OAuth2 connection — read-only scope; Tshepo can never move money or write data.
+2. Accounts API    — fetches account list and current balance.
+3. Transactions API — pulls up to 12 months of transactions.
+4. All raw data is processed in memory inside PredicateService and immediately discarded.
+   Only boolean results (met / not met) are persisted. Raw transactions are never stored,
+   logged, or transmitted beyond the in-process computation.
 
-Open http://localhost:8080 and follow the Connect → Issue → Present → Verify flow.
-The fixture account is "Thabo Mokoena" with a monthly salary of R42,340 — all claim
-thresholds pass.
-
----
-
-## Seed script
-
-`scripts/seed.sh` inserts a demo user and fires the full issue+present flow via the REST API
-so the app starts with a credential already in the database.
+Claim types supported:
+  INFLOW            Average monthly credit ≥ threshold (ZAR) over N months
+  BALANCE           Current balance ≥ threshold (ZAR)
+  TENURE            Account open for ≥ N months
+  SALARY_CONTINUITY Consecutive months with a large credit ≥ R20,000
+  NO_OVERDRAFT      No negative running balance in the window
 
 ---
 
-## Monetisation model
+TRUST MODEL NOTE
 
-- **Issuance fee**: charged per credential issued (tracked by `Credential` entity).
-- **Metered verify API**: `POST /v1/verify` requires an `X-API-Key`; `VerificationEvent`
-  records every call against the key for billing.
+In the ideal production deployment, Investec would act as the credential issuer —
+countersigning or directly issuing the SD-JWT from the bank's own key. This gives
+verifiers cryptographic proof that the attestation came from the bank, not a third party.
+
+The current build uses Tshepo's own issuer key (did:web) to sign claims computed from
+live Investec data. This demonstrates the full technical stack; bank-direct issuance
+is the intended next iteration.
 
 ---
 
-## Repo structure
+VERIFIABLE CREDENTIAL STANDARD
 
-```
-design/                   UI prototypes (open in browser)
-src/main/java/app/tshepo/
-  integration/investec/   InvestecClient + FixtureInvestecClient + LiveInvestecClient
-  service/                PredicateService, SdJwtService, CredentialIssuanceService, …
-  web/rest/               Controllers implementing generated OpenAPI interfaces
-src/main/webapp/app/tshepo/  React 19 Holder + Verifier SPA
-src/main/resources/swagger/api.yml  OpenAPI 3.1 contract (api-first)
-knowledge                 this file
-```
+Tshepo implements SD-JWT VC (IETF draft-ietf-oauth-selective-disclosure-jwt) using
+Nimbus JOSE+JWT:
+
+  Issuer key:     EC P-256 / ES256
+  Issuer DID:     did:web — JWKS at /.well-known/jwks.json
+  Disclosures:    SHA-256 hashed; BASE64URL(["salt","claim_name",value])
+  Presentation:   issuer JWT + chosen disclosures only + trailing ~
+  Verification:   public endpoint (/api/verify) + metered API (/v1/verify)
+
+---
+
+PRIVACY GUARANTEES (enforced in code, not just policy)
+
+  Raw transactions:   never persisted, never logged, never transmitted
+  Credential values:  thresholds only ("≥ R30,000"), never exact figures
+  Selective disclosure: non-selected claims cryptographically stripped
+  Bank access:        read-only OAuth2 scope (accounts) — no payment capability
+
+---
+
+MONETISATION MODEL
+
+  Issuance fee:    charged per SD-JWT VC issued (Credential entity tracks this)
+  Metered verify:  POST /v1/verify requires X-API-Key; VerificationEvent records
+                   every call per key for billing
+
+---
+
+RUNNING LOCALLY
+
+  # Developer console (interactive — recommended)
+  ./scripts/start.sh
+
+  # Fixture mode (no credentials needed)
+  ./scripts/dev.sh
+
+  # Sandbox or live account
+  ./scripts/dev.sh --live   (requires .env with credentials)
+
+  App: http://localhost:9060
+
+---
+
+FIXTURE ACCOUNT
+
+  Name:    Puseletso Lesenyane
+  Account: Private Bank Account •••• 4821
+  Salary:  ~R42,300/month from PattersonGroup
+  All claim thresholds pass in fixture mode.
+
+---
+
+DEMO FLOW
+
+  1. Open http://localhost:9060
+  2. Click "Connect with Investec" → /connect
+  3. Click "Connect Investec account" → OAuth → lands on /My credentials
+  4. Click "New credential" → select claims → Issue
+  5. Click credential card → select disclosures → copy SD-JWT token
+  6. Open /verify → paste token → verify
+
+---
+
+KEY FILES
+
+  src/main/resources/swagger/api.yml         OpenAPI 3.1 contract (api-first)
+  src/main/java/app/tshepo/service/          Core business logic
+  src/main/java/app/tshepo/integration/      Investec adapter (fixture + live)
+  src/main/webapp/app/tshepo/HolderApp.tsx   React holder UI
+  scripts/start.sh                           Developer console
+  scripts/seed.sh                            Demo data seeder
+  knowledge                                  This file

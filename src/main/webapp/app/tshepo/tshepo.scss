@@ -389,10 +389,24 @@
   grid-template-columns: repeat(3, 1fr);
   gap: 20px;
 }
+/* --- Connect screen two-column layout --- */
+.ts-connect-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: 28px;
+  align-items: stretch;
+}
+
 @media (max-width: 768px) {
   .ts-grid-2,
   .ts-grid-3 {
     grid-template-columns: 1fr;
+  }
+  .ts-connect-grid {
+    grid-template-columns: 1fr;
+    .ts-card {
+      order: -1;
+    }
   }
 }
 
@@ -487,6 +501,17 @@
     opacity: 1;
     transform: none;
   }
+}
+
+@keyframes ts-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.ts-spin {
+  animation: ts-spin 0.75s linear infinite;
+  display: inline-block;
 }
 
 /* =====================================================================

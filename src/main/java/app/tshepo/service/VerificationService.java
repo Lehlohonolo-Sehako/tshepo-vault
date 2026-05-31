@@ -74,7 +74,7 @@ public class VerificationService {
             try {
                 UUID credUuid = UUID.fromString(parsed.jti());
                 Optional<Credential> opt = credentialRepository.findByCredentialUuid(credUuid);
-                if (opt.isPresent() && opt.get().getStatus() == CredentialStatus.REVOKED) {
+                if (opt.isPresent() && opt.orElseThrow().getStatus() == CredentialStatus.REVOKED) {
                     return invalid(VerifyResponse.ErrorEnum.REVOKED, parsed, apiKeyId);
                 }
             } catch (IllegalArgumentException ignored) {

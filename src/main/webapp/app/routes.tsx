@@ -14,6 +14,8 @@ import ErrorBoundaryRoutes from 'app/shared/error/error-boundary-routes';
 import PageNotFound from 'app/shared/error/page-not-found';
 import { Authority } from 'app/shared/jhipster/constants';
 import VerifierPage from 'app/tshepo/VerifierPage';
+import OAuthCallback from 'app/tshepo/OAuthCallback';
+import LandingPage from 'app/tshepo/LandingPage';
 
 const loading = <div>loading ...</div>;
 
@@ -27,6 +29,8 @@ const AppRoutes = () => {
         <ErrorBoundaryRoutes>
           <Route index element={<Home />} />
           <Route path="verify" element={<VerifierPage />} />
+          <Route path="oauth-callback" element={<OAuthCallback />} />
+          <Route path="landing" element={<LandingPage />} />
           <Route path="login" element={<Login />} />
           <Route path="logout" element={<Logout />} />
           <Route path="account">

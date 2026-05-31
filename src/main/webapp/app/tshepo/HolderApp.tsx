@@ -15,8 +15,15 @@ import {
   AlertCircle,
   Loader2,
 } from 'lucide-react';
-import { bankApi, credentialApi, ComputedClaim, CredentialResponse, ClaimThreshold } from './api';
+import axios from 'axios';
+import { bankApi, credentialApi, BankStatusResponse, ComputedClaim, CredentialResponse, ClaimThreshold } from './api';
 import './tshepo.scss';
+
+interface AccountInfo {
+  login: string;
+  firstName?: string;
+  lastName?: string;
+}
 
 type Screen = 'connect' | 'hub' | 'issue' | 'present';
 
@@ -32,6 +39,7 @@ const Btn = ({
   size = 'md',
   full = false,
   disabled = false,
+  spinning = false,
   onClick,
   icon: Icon,
   type = 'button',
@@ -41,6 +49,7 @@ const Btn = ({
   size?: string;
   full?: boolean;
   disabled?: boolean;
+  spinning?: boolean;
   onClick?: () => void;
   icon?: React.ElementType;
   type?: 'button' | 'submit';
@@ -51,7 +60,7 @@ const Btn = ({
     disabled={disabled}
     onClick={onClick}
   >
-    {Icon && <Icon size={size === 'sm' ? 14 : 16} />}
+    {Icon && <Icon size={size === 'sm' ? 14 : 16} className={spinning ? 'ts-spin' : undefined} />}
     {children}
   </button>
 );
@@ -59,42 +68,50 @@ const Btn = ({
 // ----- Connect Screen -----
 
 const CONNECT_STEPS = [
-  'Authorising read-only access',
+  'Authorising read-only access via Investec OAuth',
   'Pulling 12 months of statements',
   'Computing claims in memory',
-  'Discarding raw transactions',
+  'Discarding raw transactions — privacy by design',
 ];
 
-function ConnectScreen({ onConnected }: { onConnected: () => void }) {
-  const [phase, setPhase] = useState<'idle' | 'connecting' | 'done'>('idle');
+const ERROR_MESSAGES: Record<string, { title: string; body: string }> = {
+  connection_refused: {
+    title: 'Could not reach Investec',
+    body: 'The Investec service is not reachable. If you are running the sandbox, make sure the Docker container is running on port 3000.',
+  },
+  timeout: {
+    title: 'Connection timed out',
+    body: 'The request to Investec took too long. Check your network connection and try again.',
+  },
+  auth_failed: {
+    title: 'Invalid credentials',
+    body: 'The client credentials were rejected. Double-check your INVESTEC_CLIENT_ID, INVESTEC_CLIENT_SECRET, and INVESTEC_API_KEY.',
+  },
+  server_error: {
+    title: 'Something went wrong',
+    body: 'An unexpected error occurred while connecting to Investec. Please try again.',
+  },
+};
+
+function ConnectScreen() {
+  const [connecting, setConnecting] = useState(false);
   const [stepIdx, setStepIdx] = useState(0);
-  const [error, setError] = useState('');
+
+  const errorCode = new URLSearchParams(window.location.search).get('error');
+  const errorInfo = errorCode ? (ERROR_MESSAGES[errorCode] ?? ERROR_MESSAGES['server_error']) : null;
 
   useEffect(() => {
-    if (phase !== 'connecting') return;
+    if (!connecting) return;
     if (stepIdx < CONNECT_STEPS.length) {
-      const t = setTimeout(() => setStepIdx(i => i + 1), 680);
+      const t = setTimeout(() => setStepIdx(i => i + 1), 700);
       return () => clearTimeout(t);
     }
-    // Simulate OAuth exchange (fixture: any code works)
-    bankApi
-      .connect('fixture-code', window.location.origin + '/callback')
-      .then(() => {
-        setPhase('done');
-        setTimeout(onConnected, 800);
-      })
-      .catch(() => {
-        setError('Connection failed. Please try again.');
-        setPhase('idle');
-      });
-  }, [phase, stepIdx]);
+    window.location.href = '/api/auth/investec/authorize';
+  }, [connecting, stepIdx]);
 
   return (
     <div className="ts-anim-in" style={{ maxWidth: 1040, margin: '0 auto', padding: '48px 24px' }}>
-      <div
-        style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.05fr) minmax(0,0.95fr)', gap: 28, alignItems: 'stretch' }}
-        className="ts-connect-grid"
-      >
+      <div className="ts-connect-grid">
         {/* Left — value prop */}
         <div>
           <Pill tone="brand">
@@ -173,6 +190,27 @@ function ConnectScreen({ onConnected }: { onConnected: () => void }) {
             </div>
           </div>
 
+          {errorInfo && (
+            <div
+              style={{
+                marginTop: 20,
+                borderRadius: 10,
+                border: '1px solid rgba(186,117,23,0.3)',
+                background: 'rgba(186,117,23,0.07)',
+                padding: '12px 14px',
+                display: 'flex',
+                gap: 10,
+                alignItems: 'flex-start',
+              }}
+            >
+              <AlertCircle size={16} style={{ color: '#BA7517', flexShrink: 0, marginTop: 1 }} />
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#BA7517', marginBottom: 2 }}>{errorInfo.title}</div>
+                <div style={{ fontSize: 12.5, color: '#6B6B6B', lineHeight: 1.5 }}>{errorInfo.body}</div>
+              </div>
+            </div>
+          )}
+
           <div
             style={{
               marginTop: 24,
@@ -186,8 +224,8 @@ function ConnectScreen({ onConnected }: { onConnected: () => void }) {
             }}
           >
             {CONNECT_STEPS.map((step, i) => {
-              const active = phase === 'connecting' && i === stepIdx;
-              const done = (phase === 'connecting' && i < stepIdx) || phase === 'done';
+              const done = connecting && i < stepIdx;
+              const active = connecting && i === stepIdx;
               return (
                 <div key={i} className="ts-step">
                   <span
@@ -210,50 +248,29 @@ function ConnectScreen({ onConnected }: { onConnected: () => void }) {
                       <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#d7d7d4', display: 'block' }} />
                     )}
                   </span>
-                  <span style={{ color: done || active ? 'var(--ts-charcoal)' : 'var(--ts-muted)' }}>{step}</span>
+                  <span style={{ color: done || active ? 'var(--ts-charcoal)' : 'var(--ts-muted)', transition: 'color 200ms' }}>
+                    {step}
+                  </span>
                 </div>
               );
             })}
           </div>
 
-          {error && (
-            <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#b91c1c' }}>
-              <AlertCircle size={14} /> {error}
-            </div>
-          )}
-
           <div style={{ marginTop: 24, flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
-            {phase === 'done' ? (
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 8,
-                  height: 52,
-                  color: 'var(--ts-success)',
-                  fontWeight: 500,
-                  fontSize: 15,
-                }}
-              >
-                <CheckCircle size={20} /> Account connected
-              </div>
-            ) : (
-              <Btn
-                variant="dark"
-                size="lg"
-                full
-                icon={phase === 'connecting' ? Loader2 : LinkIcon}
-                disabled={phase === 'connecting'}
-                onClick={() => {
-                  setError('');
-                  setPhase('connecting');
-                  setStepIdx(0);
-                }}
-              >
-                {phase === 'connecting' ? 'Connecting…' : 'Connect Investec account'}
-              </Btn>
-            )}
+            <Btn
+              variant="dark"
+              size="lg"
+              full
+              icon={connecting ? Loader2 : LinkIcon}
+              spinning={connecting}
+              disabled={connecting}
+              onClick={() => {
+                setConnecting(true);
+                setStepIdx(0);
+              }}
+            >
+              {connecting ? 'Connecting…' : 'Connect Investec account'}
+            </Btn>
             <div
               style={{
                 display: 'flex',
@@ -362,7 +379,17 @@ function CredentialCard({ cred, style, onClick }: { cred: CredentialResponse; st
 
 // ----- Hub Screen -----
 
-function HubScreen({ onIssue, onPresent }: { onIssue: () => void; onPresent: (cred: CredentialResponse) => void }) {
+function HubScreen({
+  bankStatus,
+  accountInfo,
+  onIssue,
+  onPresent,
+}: {
+  bankStatus: BankStatusResponse | null;
+  accountInfo: AccountInfo | null;
+  onIssue: () => void;
+  onPresent: (cred: CredentialResponse) => void;
+}) {
   const [credentials, setCredentials] = useState<CredentialResponse[]>([]);
   const [cardStyle, setCardStyle] = useState<'passport' | 'minimal'>('passport');
   const [loading, setLoading] = useState(true);
@@ -377,8 +404,50 @@ function HubScreen({ onIssue, onPresent }: { onIssue: () => void; onPresent: (cr
       .catch(() => setLoading(false));
   }, []);
 
+  const holderName = accountInfo ? [accountInfo.firstName, accountInfo.lastName].filter(Boolean).join(' ') || accountInfo.login : null;
+
+  const connectedSince = bankStatus?.connectedAt
+    ? new Date(bankStatus.connectedAt as unknown as string).toLocaleDateString('en-ZA', { dateStyle: 'medium' })
+    : null;
+
   return (
     <div className="ts-anim-in" style={{ maxWidth: 1100, margin: '0 auto', padding: '40px 24px' }}>
+      {/* Account info banner */}
+      {(holderName || bankStatus?.maskedAccount) && (
+        <div
+          className="ts-card"
+          style={{ padding: '14px 20px', marginBottom: 28, display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}
+        >
+          <div
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 12,
+              background: 'var(--ts-charcoal)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}
+          >
+            <Building2 size={18} style={{ color: 'var(--ts-brand)' }} />
+          </div>
+          <div style={{ flex: 1 }}>
+            {holderName && <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 2 }}>{holderName}</div>}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              {bankStatus?.maskedAccount && (
+                <span style={{ fontSize: 12.5, color: 'var(--ts-muted)' }}>Investec {bankStatus.maskedAccount}</span>
+              )}
+              {connectedSince && <span style={{ fontSize: 12.5, color: 'var(--ts-muted)' }}>· Connected {connectedSince}</span>}
+            </div>
+          </div>
+          <span className="ts-pill ts-pill--success" style={{ gap: 5 }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--ts-success)', display: 'inline-block' }} />
+            Connected
+          </span>
+        </div>
+      )}
+
       <div
         style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, marginBottom: 28 }}
       >
@@ -609,6 +678,27 @@ function IssueScreen({ onBack, onIssued }: { onBack: () => void; onIssued: () =>
         )}
       </div>
 
+      {/* Trust model note */}
+      <div
+        style={{
+          display: 'flex',
+          gap: 12,
+          padding: '13px 16px',
+          borderRadius: 10,
+          background: 'rgba(0,169,224,0.05)',
+          border: '1px solid rgba(0,169,224,0.18)',
+          marginBottom: 16,
+        }}
+      >
+        <Shield size={15} style={{ color: 'var(--ts-brand)', flexShrink: 0, marginTop: 1 }} />
+        <div style={{ fontSize: 12.5, color: 'var(--ts-muted)', lineHeight: 1.6 }}>
+          <span style={{ fontWeight: 600, color: 'var(--ts-charcoal)' }}>Ideal model — </span>
+          in production Investec would act as the credential issuer, countersigning or directly issuing the SD-JWT from the bank&apos;s own
+          key. This gives verifiers cryptographic proof that the attestation came from the bank, not a third party. The current build uses
+          Tshepo&apos;s issuer key to sign claims computed from your live Investec data.
+        </div>
+      </div>
+
       {error && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#b91c1c', marginBottom: 16 }}>
           <AlertCircle size={14} /> {error}
@@ -620,6 +710,7 @@ function IssueScreen({ onBack, onIssued }: { onBack: () => void; onIssued: () =>
         size="lg"
         full
         icon={issuing ? Loader2 : CheckCircle}
+        spinning={issuing}
         disabled={selected.size === 0 || !title.trim() || issuing}
         onClick={issue}
       >
@@ -902,13 +993,20 @@ function claimTypeShortLabel(type: string): string {
 export default function HolderApp() {
   const [screen, setScreen] = useState<Screen>('connect');
   const [selectedCred, setSelectedCred] = useState<CredentialResponse | null>(null);
+  const [bankStatus, setBankStatus] = useState<BankStatusResponse | null>(null);
+  const [accountInfo, setAccountInfo] = useState<AccountInfo | null>(null);
 
   useEffect(() => {
     bankApi
       .status()
       .then(r => {
+        setBankStatus(r.data);
         if (r.data.connected) setScreen('hub');
       })
+      .catch(() => {});
+    axios
+      .get<AccountInfo>('/api/account')
+      .then(r => setAccountInfo(r.data))
       .catch(() => {});
   }, []);
 
@@ -919,23 +1017,44 @@ export default function HolderApp() {
           tshepo<span>.</span>
         </div>
         <div className="ts-nav__actions">
-          <button
-            onClick={() => {
-              localStorage.removeItem('jhi-authenticationToken');
-              sessionStorage.removeItem('jhi-authenticationToken');
-              window.location.href = '/';
-            }}
-            className="ts-btn ts-btn--ghost ts-btn--sm"
-            style={{ color: 'rgba(255,255,255,0.6)', borderColor: 'rgba(255,255,255,0.15)' }}
-          >
-            Sign out
-          </button>
+          {screen === 'connect' ? (
+            <a
+              href="/"
+              className="ts-btn ts-btn--ghost ts-btn--sm"
+              style={{ color: 'rgba(255,255,255,0.6)', borderColor: 'rgba(255,255,255,0.15)' }}
+            >
+              ← Back
+            </a>
+          ) : (
+            <button
+              onClick={() => {
+                localStorage.removeItem('jhi-authenticationToken');
+                sessionStorage.removeItem('jhi-authenticationToken');
+                window.location.href = '/';
+              }}
+              style={{
+                fontSize: 13,
+                fontWeight: 500,
+                padding: '6px 14px',
+                borderRadius: 8,
+                border: 'none',
+                background: '#b91c1c',
+                color: '#fff',
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+              }}
+            >
+              Disconnect
+            </button>
+          )}
         </div>
       </nav>
 
-      {screen === 'connect' && <ConnectScreen onConnected={() => setScreen('hub')} />}
+      {screen === 'connect' && <ConnectScreen />}
       {screen === 'hub' && (
         <HubScreen
+          bankStatus={bankStatus}
+          accountInfo={accountInfo}
           onIssue={() => setScreen('issue')}
           onPresent={cred => {
             setSelectedCred(cred);

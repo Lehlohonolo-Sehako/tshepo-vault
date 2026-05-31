@@ -82,7 +82,8 @@ public class BankConnectService {
         if (opt.isEmpty()) {
             return new BankStatusResponse().connected(false);
         }
-        return toBankStatusResponse(opt.get(), opt.get().getStatus() == BankConnectionStatus.CONNECTED);
+        BankConnection conn = opt.orElseThrow();
+        return toBankStatusResponse(conn, conn.getStatus() == BankConnectionStatus.CONNECTED);
     }
 
     @Transactional(readOnly = true)

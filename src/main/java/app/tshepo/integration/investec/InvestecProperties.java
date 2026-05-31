@@ -9,9 +9,11 @@ public class InvestecProperties {
 
     private String clientId;
     private String clientSecret;
-    private String apiBase = "https://openapi.investec.com";
-    private String tokenUri = "https://identity.investec.com/am/oauth2/access_token";
-    private String authorizeUri = "https://identity.investec.com/am/oauth2/alpha/authorize";
+    private String apiKey;
+    private String apiBase = "https://openapisandbox.investec.com";
+    private String tokenUri = "https://openapisandbox.investec.com/identity/v2/oauth2/token";
+    private String authorizeUri = "https://openapisandbox.investec.com/identity/v2/oauth2/authorize";
+    private String redirectUri = "http://localhost:3000/oauth-callback";
 
     public String getAuthorizeUri() {
         return authorizeUri;
@@ -37,6 +39,14 @@ public class InvestecProperties {
         this.clientSecret = clientSecret;
     }
 
+    public String getApiKey() {
+        return apiKey;
+    }
+
+    public void setApiKey(String apiKey) {
+        this.apiKey = apiKey;
+    }
+
     public String getApiBase() {
         return apiBase;
     }
@@ -51,5 +61,13 @@ public class InvestecProperties {
 
     public void setTokenUri(String tokenUri) {
         this.tokenUri = tokenUri;
+    }
+
+    public String getRedirectUri() {
+        return redirectUri;
+    }
+
+    public void setRedirectUri(String redirectUri) {
+        this.redirectUri = redirectUri;
     }
 }

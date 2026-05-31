@@ -34,7 +34,52 @@ const AppInner = () => {
   }
 
   // Authenticated holder — render the full holder app.
-  if (sessionHasBeenFetched && isAuthenticated) {
+  // Session still loading — show the branded splash so there's no blank flash.
+  if (!sessionHasBeenFetched) {
+    return (
+      <div
+        style={{
+          position: 'fixed',
+          inset: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: '#f7f7f6',
+          gap: 16,
+          fontFamily: '"Plus Jakarta Sans", system-ui, sans-serif',
+        }}
+      >
+        <svg width="48" height="48" viewBox="0 0 32 32" fill="none">
+          <path
+            d="M16 3.2l9 3.6v6.2c0 6-4 10.3-9 12-5-1.7-9-6-9-12V6.8l9-3.6z"
+            fill="#00a9e0"
+            fillOpacity="0.12"
+            stroke="#00a9e0"
+            strokeWidth="1.8"
+          />
+          <path d="M11.5 15.6l3 3 6-6.4" stroke="#00a9e0" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        <div style={{ fontSize: 20, color: '#1a1a1a', letterSpacing: -0.5 }}>
+          tshepo<span style={{ color: '#00a9e0' }}>.</span>
+        </div>
+        <div
+          style={{
+            width: 28,
+            height: 28,
+            border: '2.5px solid rgba(0,169,224,0.18)',
+            borderTopColor: '#00a9e0',
+            borderRadius: '50%',
+            animation: 'ts-spin 0.75s linear infinite',
+          }}
+        />
+        <style>{`@keyframes ts-spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
+
+  // Authenticated — show the holder app (hub, issue, present screens)
+  if (isAuthenticated) {
     return (
       <>
         <ToastContainer position="top-left" className="toastify-container" toastClassName="toastify-toast" />
@@ -43,14 +88,16 @@ const AppInner = () => {
     );
   }
 
-  // Session still loading — render nothing to avoid a flash of the landing page
-  // for users who are already logged in.
-  if (!sessionHasBeenFetched) {
-    return null;
+  // /connect — show the ConnectScreen for unauthenticated users before OAuth
+  if (location.pathname === '/connect') {
+    return (
+      <>
+        <ToastContainer position="top-left" className="toastify-container" toastClassName="toastify-toast" />
+        <HolderApp />
+      </>
+    );
   }
 
-  // Not authenticated (any path) — always show the landing page.
-  // This replaces /login, /account/register, and all other JHipster auth routes.
   return <LandingPage />;
 };
 

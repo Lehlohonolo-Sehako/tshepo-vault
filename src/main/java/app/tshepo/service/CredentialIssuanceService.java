@@ -7,6 +7,7 @@ import app.tshepo.domain.enumeration.BankConnectionStatus;
 import app.tshepo.domain.enumeration.ClaimOperator;
 import app.tshepo.domain.enumeration.ClaimType;
 import app.tshepo.domain.enumeration.CredentialStatus;
+import app.tshepo.integration.investec.InvestecClient;
 import app.tshepo.repository.BankConnectionRepository;
 import app.tshepo.repository.CredentialRepository;
 import app.tshepo.repository.IssuedClaimRepository;
@@ -41,6 +42,7 @@ public class CredentialIssuanceService {
     private final SdJwtService sdJwtService;
     private final IssuerKeyService issuerKeyService;
     private final TshepoProperties props;
+    private final InvestecClient investecClient;
 
     public CredentialIssuanceService(
         CredentialRepository credentialRepository,
@@ -49,7 +51,8 @@ public class CredentialIssuanceService {
         PredicateService predicateService,
         SdJwtService sdJwtService,
         IssuerKeyService issuerKeyService,
-        TshepoProperties props
+        TshepoProperties props,
+        InvestecClient investecClient
     ) {
         this.credentialRepository = credentialRepository;
         this.issuedClaimRepository = issuedClaimRepository;
@@ -58,6 +61,7 @@ public class CredentialIssuanceService {
         this.sdJwtService = sdJwtService;
         this.issuerKeyService = issuerKeyService;
         this.props = props;
+        this.investecClient = investecClient;
     }
 
     public CredentialResponse issueCredential(String holderLogin, CredentialIssueRequest request) {
@@ -209,10 +213,17 @@ public class CredentialIssuanceService {
         return r;
     }
 
-    private static String resolveAccountId(BankConnection conn) {
-        // In fixture mode the accountId is hardcoded; for live we use the stored connection metadata
-        // to avoid re-calling getAccounts unnecessarily. A real implementation would store accountId.
-        return "fixture-account-001";
+    private String resolveAccountId(BankConnection conn) {
+        String token = conn.getAccessToken();
+        if (token == null || token.isBlank()) {
+            return "fixture-account-001";
+        }
+        try {
+            var accounts = investecClient.getAccounts(token);
+            return accounts.isEmpty() ? "fixture-account-001" : accounts.get(0).accountId();
+        } catch (Exception e) {
+            return "fixture-account-001";
+        }
     }
 
     private static ClaimType domainClaimType(app.tshepo.web.rest.vm.ClaimType vmType) {

@@ -1,5 +1,4 @@
 const webpackMerge = require('webpack-merge').merge;
-const BrowserSyncPlugin = require('browser-sync-webpack-plugin');
 const SimpleProgressWebpackPlugin = require('simple-progress-webpack-plugin');
 const WebpackNotifierPlugin = require('webpack-notifier');
 const path = require('path');
@@ -53,7 +52,7 @@ module.exports = async options =>
       port: 9060,
       proxy: [
         {
-          context: ['/api', '/services', '/management', '/v3/api-docs', '/h2-console'],
+          context: ['/api', '/services', '/management', '/v3/api-docs', '/h2-console', '/.well-known'],
           target: `http${options.tls ? 's' : ''}://localhost:8080`,
           secure: false,
           changeOrigin: options.tls,
@@ -68,35 +67,6 @@ module.exports = async options =>
         : new SimpleProgressWebpackPlugin({
             format: options.stats === 'minimal' ? 'compact' : 'expanded',
           }),
-      new BrowserSyncPlugin(
-        {
-          https: options.tls,
-          host: 'localhost',
-          port: 9000,
-          proxy: {
-            target: `http${options.tls ? 's' : ''}://localhost:${options.watch ? '8080' : '9060'}`,
-            ws: true,
-            proxyOptions: {
-              changeOrigin: false, //pass the Host header to the backend unchanged https://github.com/Browsersync/browser-sync/issues/430
-            },
-          },
-          socket: {
-            clients: {
-              heartbeatTimeout: 60000,
-            },
-          },
-          /*
-      ,ghostMode: { // uncomment this part to disable BrowserSync ghostMode; https://github.com/jhipster/generator-jhipster/issues/11116
-        clicks: false,
-        location: false,
-        forms: false,
-        scroll: false
-      } */
-        },
-        {
-          reload: false,
-        },
-      ),
       new WebpackNotifierPlugin({
         title: 'Tshepo Vault',
         contentImage: path.join(__dirname, 'logo-jhipster.png'),
